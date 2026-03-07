@@ -10,6 +10,7 @@ response = requests.get(url)
 
 #Imprimimos el código de estado
 print(f"Status Code: {response.status_code}")
+print(response.text)
 
 if response.status_code == 200:
     print("¡Conexión exitosa con FutBin!")
