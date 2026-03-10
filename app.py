@@ -1,18 +1,37 @@
-# print("Hola mundo")
-
 import requests
+from bs4 import BeautifulSoup
+import time
 
-#URL de un jugador de FutBin
-url = "https://www.futbin.com/26/player/20801/lionel-messi"
+session = requests.Session()
 
-#Realizamos la peticion
-response = requests.get(url)
+headers = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://www.futbin.com/"
+}
 
-#Imprimimos el código de estado
-print(f"Status Code: {response.status_code}")
-print(response.text)
+session.headers.update(headers)
 
-if response.status_code == 200:
-    print("¡Conexión exitosa con FutBin!")
+url = "https://www.futbin.com/26/player/40/kylian-mbappe"
+
+# 1️⃣ visitar la página primero
+page = session.get(url)
+
+soup = BeautifulSoup(page.text, "html.parser")
+nombre = soup.find("h1").text.split("-")[0].strip()
+
+# pequeño delay para evitar bloqueo
+time.sleep(2)
+
+# 2️⃣ pedir el precio
+player_id = url.split("/player/")[1].split("/")[0]
+price_url = f"https://www.futbin.com/playerPrices?player={player_id}"
+
+price_response = session.get(price_url)
+
+if "application/json" not in price_response.headers.get("content-type",""):
+    print("FutBin devolvió HTML en vez de JSON (bloqueo)")
 else:
-    print(f"Algo pasó. Código: {response.status_code}")
+    data = price_response.json()
+    price = data[player_id]["prices"]["ps"]["LCPrice"]
+    print(f"Jugador: {nombre}")
+    print(f"Precio: {price}")
