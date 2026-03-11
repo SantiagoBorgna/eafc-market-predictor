@@ -60,5 +60,5 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("messi", precio_messi))
         
-        # El bot se queda escuchando
+        # El bot se queda escuchando 
         app.run_polling()
