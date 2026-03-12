@@ -173,6 +173,56 @@ def obtener_jugador_por_id(jugador_id):
     finally:
         conn.close()
 
+def obtener_jugador_por_futwiz_id(futwiz_id):
+    """
+    Devuelve un jugador buscando por su ID de Futwiz (ideal para scrapers).
+    """
+    conn = _get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT * FROM jugadores WHERE futwiz_id = ?", (futwiz_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    except sqlite3.Error as e:
+        print(f"Error buscando al jugador experto por futwiz_id {futwiz_id}: {e}")
+        return None
+    finally:
+        conn.close()
+
+def registrar_suscriptor(chat_id):
+    """
+    Guarda un nuevo ID de chat en la base de datos para recibir alertas.
+    Ignora el insert si el usuario ya está suscrito.
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT OR IGNORE INTO suscriptores (chat_id) VALUES (?)", (chat_id,))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Error al registrar el suscriptor: {e}")
+        return False
+    finally:
+        conn.close()
+
+def obtener_suscriptores():
+    """
+    Devuelve la lista de todos los IDs de chat suscritos a las alertas.
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT chat_id FROM suscriptores")
+        return [row[0] for row in cursor.fetchall()]
+    except sqlite3.Error as e:
+        print(f"Error al obtener suscriptores: {e}")
+        return []
+    finally:
+        conn.close()
+
 # Bloque de prueba
 if __name__ == '__main__':
     print("--- 🧪 Test de Funciones CRUD ---")

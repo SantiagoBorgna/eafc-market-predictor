@@ -5,7 +5,11 @@ from dotenv import load_dotenv
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from bot.motor_reglas import analizar_filtracion_y_recomendar
+from database.crud import registrar_suscriptor, obtener_suscriptores
+
+# Variables globales para el bot
+ultima_filtracion_vista = None
 
 # --- 1. CONFIGURACIÓN (KAN-11) ---
 load_dotenv()
@@ -91,7 +95,11 @@ def obtener_ultimo_filtrado():
 # --- 4. COMANDOS DEL BOT (KAN-12, KAN-14) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hola, estoy listo para predecir el mercado y darte filtraciones.")
+    chat_id = update.effective_chat.id
+    if registrar_suscriptor(chat_id):
+        await update.message.reply_text("Hola, estoy listo para predecir el mercado y darte filtraciones. ¡Acabas de quedar suscrito a las Alertas Automáticas! 🛎️")
+    else:
+        await update.message.reply_text("¡Hola! Ya estabas suscrito a las Alertas Automáticas. 🛎️")
 
 async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """KAN-14: Integración de precios"""
@@ -109,11 +117,47 @@ async def filtrados(update: Update, context: ContextTypes.DEFAULT_TYPE):
     noticia = obtener_ultimo_filtrado()
     await update.message.reply_text(noticia, parse_mode='Markdown')
 
+# --- 4.5 TAREAS EN SEGUNDO PLANO (ALERTAS) ---
+async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
+    global ultima_filtracion_vista
+    
+    url_feed = "https://www.fifaultimateteam.it/en/feed/"
+    try:
+        feed = feedparser.parse(url_feed)
+        if feed.entries:
+            entrada = feed.entries[0] # Revisamos la mas reciente de todo el feed
+            titulo = entrada.title
+            link = entrada.link
+            
+            # Filtro: Contiene palabra clave y no la hemos mandado antes todavía
+            if ("SBC" in titulo.upper() or "LEAK" in titulo.upper()) and link != ultima_filtracion_vista:
+                ultima_filtracion_vista = link
+                
+                # 1. Avisamos la noticia en vivo
+                alerta_msg = f"🚨 **ALERTA AUTOMÁTICA: NUEVA FILTRACIÓN DETECTADA** 🚨\n\n{titulo}\n🔗 {link}"
+                suscriptores_db = obtener_suscriptores()
+                
+                for chat_id in suscriptores_db:
+                    await context.bot.send_message(chat_id=chat_id, text=alerta_msg, parse_mode='Markdown')
+                
+                # 2. Pasamos el titular de la noticia por el Motor de Reglas Predictivo
+                recomendacion = analizar_filtracion_y_recomendar(titulo)
+                if recomendacion:
+                    for chat_id in suscriptores_db:
+                        await context.bot.send_message(chat_id=chat_id, text=recomendacion, parse_mode='Markdown')
+                        
+    except Exception as e:
+        print(f"Error en job de alertas: {e}")
+
 # --- 5. EJECUCIÓN ---
 if __name__ == "__main__":
     if TOKEN:
         print("🚀 Bot KAN-16 en línea. Comandos: /start, /precio, /filtrados")
         app = ApplicationBuilder().token(TOKEN).build()
+        
+        # Registrar JobQueue para las Alertas Automáticas (ejecuta cada 60 segundos)
+        job_queue = app.job_queue
+        job_queue.run_repeating(chequear_feed_periodico, interval=60, first=10)
         
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("precio", precio))
