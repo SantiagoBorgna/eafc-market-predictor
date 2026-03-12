@@ -1,2 +1,5 @@
 curl_cffi
 beautifulsoup4
+python-telegram-bot
+feedparser
+python-dotenv

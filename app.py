@@ -11,7 +11,41 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# --- 2. LÓGICA DE PRECIOS (KAN-8 y KAN-9) ---
+# --- FUNCIONES DE MAIN (Conservadas para búsquedas avanzadas) ---
+def get_player_price_futwiz(player_id, player_slug, fc_version=25):
+    """
+    Obtiene el precio de un jugador desde Futwiz para una versión específica de EA FC.
+    fc_version: El año del juego (ej: 25 para FC25, 26 para FC26, 27 para FC27)
+    """
+    # La URL en futwiz sigue este formato general
+    url = f"https://www.futwiz.com/en/fc{fc_version}/player/{player_slug}/{player_id}"
+    
+    print(f"Buscando el precio en: {url}")
+    
+    try:
+        # Usamos curl_cffi para evadir protecciones (Cloudflare) simulando Chrome
+        response = requests.get(url, impersonate="chrome110", timeout=15)
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Buscamos la clase específica que contiene el precio en Futwiz (.price-num)
+            precio_element = soup.select_one('.price-num')
+            
+            if precio_element:
+                precio = precio_element.text.strip()
+                return precio
+            else:
+                return "No listado / Extinto"
+        elif response.status_code == 404:
+            return "El jugador no existe en esta versión o la URL es incorrecta."
+        else:
+            return f"Error HTTP {response.status_code}"
+            
+    except Exception as e:
+        return f"Error de conexión: {e}"
+
+# --- 2. LÓGICA DE PRECIOS DEL BOT (KAN-8 y KAN-9) ---
 def limpiar_precio(precio_texto):
     if not precio_texto or any(x in precio_texto for x in ["No listado", "Error"]):
         return 0
