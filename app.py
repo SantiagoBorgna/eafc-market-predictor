@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 from telegram import Update
+from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler
 from bot.motor_reglas import analizar_filtracion_y_recomendar
-from database.crud import registrar_suscriptor, obtener_suscriptores
+from database.crud import registrar_suscriptor, obtener_suscriptores, contar_jugadores, buscar_jugador_por_nombre
 
 # Variables globales para el bot
 ultima_filtracion_vista = None
@@ -117,6 +118,34 @@ async def filtrados(update: Update, context: ContextTypes.DEFAULT_TYPE):
     noticia = obtener_ultimo_filtrado()
     await update.message.reply_text(noticia, parse_mode='Markdown')
 
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Nuevos Comandos: Estadísticas del bot"""
+    total_jug = contar_jugadores()
+    total_subs = len(obtener_suscriptores())
+    await update.message.reply_text(f"📊 **Estadísticas del Motor:**\n- Jugadores rastreados: {total_jug}\n- Suscriptores activos: {total_subs}", parse_mode='Markdown')
+
+async def buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Nuevos Comandos: Buscar jugador por nombre y mostrar precio actual"""
+    if not context.args:
+        await update.message.reply_text("⚠️ Envía un nombre después de /buscar (Ej: /buscar Messi)")
+        return
+        
+    nombre_query = " ".join(context.args)
+    resultados = buscar_jugador_por_nombre(nombre_query)
+    
+    if not resultados:
+        await update.message.reply_text(f"❌ No encontré ningún jugador que coincida con '{nombre_query}'.")
+        return
+        
+    mensaje = f"🔍 **Resultados para '{nombre_query}':**\n\n"
+    for r in resultados[:10]: # Top 10 para evitar mensajes muy largos en Telegram
+        mensaje += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
+        
+    if len(resultados) > 10:
+        mensaje += f"\n*... y {len(resultados) - 10} resultados más.*"
+        
+    await update.message.reply_text(mensaje, parse_mode='Markdown')
+
 # --- 4.5 TAREAS EN SEGUNDO PLANO (ALERTAS) ---
 async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
     global ultima_filtracion_vista
@@ -162,6 +191,8 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("precio", precio))
         app.add_handler(CommandHandler("filtrados", filtrados))
+        app.add_handler(CommandHandler("stats", stats))
+        app.add_handler(CommandHandler("buscar", buscar))
         
         app.run_polling()
     else:

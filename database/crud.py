@@ -223,6 +223,37 @@ def obtener_suscriptores():
     finally:
         conn.close()
 
+def contar_jugadores():
+    """
+    Devuelve la cantidad total de jugadores en la base de datos.
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM jugadores")
+        return cursor.fetchone()[0]
+    except sqlite3.Error as e:
+        print(f"Error contando jugadores: {e}")
+        return 0
+    finally:
+        conn.close()
+
+def buscar_jugador_por_nombre(nombre_parcial):
+    """
+    Busca jugadores activos por coincidencias parciales en su nombre.
+    """
+    conn = _get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM jugadores WHERE nombre LIKE ?", (f'%{nombre_parcial}%',))
+        return [dict(row) for row in cursor.fetchall()]
+    except sqlite3.Error as e:
+        print(f"Error buscando jugador por nombre: {e}")
+        return []
+    finally:
+        conn.close()
+
 # Bloque de prueba
 if __name__ == '__main__':
     print("--- 🧪 Test de Funciones CRUD ---")

@@ -68,6 +68,8 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
         # Si el precio actual está muy cerca (o es igual) al mínimo histórico (ej: máximo un 15% más caro que el piso)
         if precio_actual <= (precio_min * 1.15):
             oportunidades.append(j)
+        else:
+            print(f"Jugador {j['nombre']} ignorado, precio muy inflado (Actual: {precio_actual}, Mínimo: {precio_min})")
             
     # Armamos el mensaje
     requisitos_texto = ", ".join([f"{k}: {v}" for k, v in requisitos.items()])
