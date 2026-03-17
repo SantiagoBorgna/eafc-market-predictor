@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler
 from bot.motor_reglas import analizar_filtracion_y_recomendar
-from database.crud import registrar_suscriptor, obtener_suscriptores, contar_jugadores, buscar_jugador_por_nombre
+from database.crud import registrar_suscriptor, obtener_suscriptores, obtener_suscriptores_separados, contar_jugadores, buscar_jugador_por_nombre
 
 # Variables globales para el bot
 ultima_filtracion_vista = None
@@ -169,15 +169,19 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                 
                 # 1. Avisamos la noticia en vivo
                 alerta_msg = f"🚨 **ALERTA AUTOMÁTICA: NUEVA FILTRACIÓN DETECTADA** 🚨\n\n{titulo}\n🔗 {link}"
-                suscriptores_db = obtener_suscriptores()
                 
-                for chat_id in suscriptores_db:
+                # Obtenemos las listas separadas y procesamos primero a los VIP
+                listas_subs = obtener_suscriptores_separados()
+                suscriptores_vip = listas_subs.get('vip', [])
+                # (La lista 'gratis' se manejara después con un retraso según lo planeado)
+                
+                for chat_id in suscriptores_vip:
                     await context.bot.send_message(chat_id=chat_id, text=alerta_msg, parse_mode='Markdown')
                 
                 # 2. Pasamos el titular de la noticia por el Motor de Reglas Predictivo
                 recomendacion = analizar_filtracion_y_recomendar(titulo)
                 if recomendacion:
-                    for chat_id in suscriptores_db:
+                    for chat_id in suscriptores_vip:
                         await context.bot.send_message(chat_id=chat_id, text=recomendacion, parse_mode='Markdown')
                         
     except Exception as e:

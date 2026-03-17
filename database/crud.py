@@ -226,6 +226,34 @@ def obtener_suscriptores():
     finally:
         conn.close()
 
+def obtener_suscriptores_separados():
+    """
+    Devuelve un diccionario con dos listas de IDs de chat separadas:
+    'vip': Usuarios con is_vip = True (1)
+    'gratis': Usuarios con is_vip = False (0)
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    Listas = {'vip': [], 'gratis': []}
+    
+    try:
+        # Obtenemos chat_id y el flag de is_vip para separarlos en Python
+        cursor.execute("SELECT chat_id, is_vip FROM suscriptores")
+        filas = cursor.fetchall()
+        
+        for chat_id, is_vip in filas:
+            if is_vip:
+                Listas['vip'].append(chat_id)
+            else:
+                Listas['gratis'].append(chat_id)
+                
+        return Listas
+    except sqlite3.Error as e:
+        print(f"Error al obtener suscriptores separados: {e}")
+        return {'vip': [], 'gratis': []}
+    finally:
+        conn.close()
+
 def contar_jugadores():
     """
     Devuelve la cantidad total de jugadores en la base de datos.
