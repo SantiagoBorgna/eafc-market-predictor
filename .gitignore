@@ -2,4 +2,4 @@
 *.sqlite
 __pycache__/
 *.html
-.vscode/
+.vscode/

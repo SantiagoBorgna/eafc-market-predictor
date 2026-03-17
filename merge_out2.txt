@@ -1,0 +1,16 @@
+Auto-merging .gitignore
+CONFLICT (content): Merge conflict in .gitignore
+Auto-merging app.py
+CONFLICT (content): Merge conflict in app.py
+Auto-merging bot/motor_reglas.py
+CONFLICT (add/add): Merge conflict in bot/motor_reglas.py
+Auto-merging database/backup_db.py
+CONFLICT (add/add): Merge conflict in database/backup_db.py
+Auto-merging database/crud.py
+CONFLICT (add/add): Merge conflict in database/crud.py
+Auto-merging database/init_db.py
+CONFLICT (add/add): Merge conflict in database/init_db.py
+warning: Cannot merge binary files: requirements.txt (HEAD vs. pr-julieta)
+Auto-merging requirements.txt
+CONFLICT (content): Merge conflict in requirements.txt
+Automatic merge failed; fix conflicts and then commit the result.
