@@ -191,7 +191,7 @@ def obtener_jugador_por_futwiz_id(futwiz_id):
     finally:
         conn.close()
 
-def registrar_suscriptor(chat_id):
+def registrar_suscriptor(chat_id, username=None, tipo_chat='private'):
     """
     Guarda un nuevo ID de chat en la base de datos para recibir alertas.
     Ignora el insert si el usuario ya está suscrito.
@@ -199,7 +199,10 @@ def registrar_suscriptor(chat_id):
     conn = _get_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT OR IGNORE INTO suscriptores (chat_id) VALUES (?)", (chat_id,))
+        cursor.execute(
+            "INSERT OR IGNORE INTO suscriptores (chat_id, username, tipo_chat, is_vip) VALUES (?, ?, ?, 0)", 
+            (chat_id, username, tipo_chat)
+        )
         conn.commit()
         return True
     except sqlite3.Error as e:

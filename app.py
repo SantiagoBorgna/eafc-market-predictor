@@ -1,6 +1,7 @@
 import os
 import asyncio
 import feedparser
+import logging
 from dotenv import load_dotenv
 from curl_cffi import requests
 from bs4 import BeautifulSoup
@@ -13,6 +14,7 @@ from database.crud import registrar_suscriptor, obtener_suscriptores, contar_jug
 ultima_filtracion_vista = None
 
 # --- 1. CONFIGURACIÓN (KAN-11) ---
+logging.basicConfig(filename='bot.log', level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -25,7 +27,7 @@ def get_player_price_futwiz(player_id, player_slug, fc_version=25):
     # La URL en futwiz sigue este formato general
     url = f"https://www.futwiz.com/en/fc{fc_version}/player/{player_slug}/{player_id}"
     
-    print(f"Buscando el precio en: {url}")
+    logging.info("Buscando el precio en: %s", url)
     
     try:
         # Usamos curl_cffi para evadir protecciones (Cloudflare) simulando Chrome
@@ -72,7 +74,7 @@ def obtener_precio_actual(url_jugador):
                 return limpiar_precio(precio_element.text.strip())
         return 0
     except Exception as e:
-        print(f"Error en scraping: {e}")
+        logging.error("Ocurrió un error: %s", e)
         return 0
 
 # --- 3. LÓGICA DE FEED CON FILTRO DE RUIDO (KAN-15 y KAN-16) ---
@@ -97,7 +99,10 @@ def obtener_ultimo_filtrado():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    if registrar_suscriptor(chat_id):
+    username = update.effective_chat.username
+    tipo_chat = update.effective_chat.type
+    
+    if registrar_suscriptor(chat_id, username, tipo_chat):
         await update.message.reply_text("Hola, estoy listo para predecir el mercado y darte filtraciones. ¡Acabas de quedar suscrito a las Alertas Automáticas! 🛎️")
     else:
         await update.message.reply_text("¡Hola! Ya estabas suscrito a las Alertas Automáticas. 🛎️")
@@ -176,12 +181,12 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                         await context.bot.send_message(chat_id=chat_id, text=recomendacion, parse_mode='Markdown')
                         
     except Exception as e:
-        print(f"Error en job de alertas: {e}")
+        logging.error("Ocurrió un error: %s", e)
 
 # --- 5. EJECUCIÓN ---
 if __name__ == "__main__":
     if TOKEN:
-        print("🚀 Bot KAN-16 en línea. Comandos: /start, /precio, /filtrados")
+        logging.info("🚀 Bot KAN-16 en línea. Comandos: /start, /precio, /filtrados")
         app = ApplicationBuilder().token(TOKEN).build()
         
         # Registrar JobQueue para las Alertas Automáticas (ejecuta cada 60 segundos)
@@ -196,4 +201,4 @@ if __name__ == "__main__":
         
         app.run_polling()
     else:
-        print("❌ Error: TOKEN no encontrado.")
+        logging.error("❌ Error: TOKEN no encontrado.")

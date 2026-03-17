@@ -43,6 +43,18 @@ def init_db():
         FOREIGN KEY (jugador_id) REFERENCES jugadores(id)
     )
     ''')
+
+    # Tabla: SUSCRIPTORES
+    print("Creando tabla 'suscriptores'...")
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS suscriptores (
+        chat_id INTEGER PRIMARY KEY,
+        username TEXT,
+        tipo_chat TEXT DEFAULT 'private',
+        is_vip BOOLEAN DEFAULT 0,
+        fecha_vencimiento_vip DATETIME DEFAULT NULL
+    )
+    ''')
     
     # Crear índices para acelerar búsquedas
     print("Creando índices...")
