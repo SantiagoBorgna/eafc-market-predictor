@@ -16,7 +16,8 @@ from database.crud import (
     obtener_suscriptores, 
     obtener_suscriptores_separados, 
     contar_jugadores, 
-    buscar_jugador_por_nombre
+    buscar_jugador_por_nombre,
+    actualizar_vip_usuario  # Agregado para la KAN-34
 )
 
 # Variables globales para el bot
@@ -32,7 +33,7 @@ logging.basicConfig(
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# --- 2. FUNCIONES DE BÚSQUEDA AVANZADA (Código original del jefe) ---
+# --- 2. FUNCIONES DE BÚSQUEDA AVANZADA ---
 def get_player_price_futwiz(player_id, player_slug, fc_version=25):
     """
     Obtiene el precio de un jugador desde Futwiz para una versión específica de EA FC.
@@ -191,15 +192,43 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"💰 El precio es: **{p}** monedas.")
 
 async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Muestra información sobre la suscripción VIP"""
+    """
+    Muestra información sobre la suscripción VIP
+   
+    """
     msj = (
         "💎 **Suscripción VIP** 💎\n\n"
         "• Alertas al instante (sin 15m de espera).\n"
         "• Análisis detallado de inversión.\n"
         "• Soporte 24/7.\n\n"
-        "Escribe a @SoporteBot para activar tu cuenta."
+        "💰 **Precio Mensual:** $5 USD / 5.000 ARS\n"
+        "💳 **Alias:** tu.bot.pago\n\n"
+        "Escribe a @SoporteBot con tu comprobante para activar tu cuenta."
     )
     await update.message.reply_text(msj, parse_mode='Markdown')
+
+async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    KAN-34: Comando de Admin Oculto para activar usuarios.
+    Formato: /setvip [ID_DEL_USUARIO] [DIAS]
+    """
+    # Reemplazar con ID real para que solo nosotros podamos usarlo
+    MI_ID_ADMIN = 123456789 
+    
+    if update.effective_user.id != MI_ID_ADMIN:
+        return # Comando oculto para otros
+
+    if len(context.args) < 2:
+        await update.message.reply_text("⚠️ Uso: /setvip [ID_DEL_USUARIO] [DIAS]")
+        return
+
+    user_id = int(context.args[0])
+    dias = int(context.args[1])
+
+    if actualizar_vip_usuario(user_id, dias):
+        await update.message.reply_text(f"✅ Usuario {user_id} actualizado a VIP por {dias} días.")
+    else:
+        await update.message.reply_text("❌ No se encontró al usuario en la base de datos.")
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Estadísticas globales del sistema"""
@@ -225,7 +254,6 @@ async def buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- 6. EJECUCIÓN DEL SISTEMA ---
 if __name__ == "__main__":
     if TOKEN:
-        print("🚀 Bot iniciado con KAN-31 y KAN-32...")
         logging.info("Bot en línea. Iniciando JobQueue y Polling.")
         
         app = ApplicationBuilder().token(TOKEN).build()
@@ -237,6 +265,7 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("precio", precio))
         app.add_handler(CommandHandler("vip", vip))
+        app.add_handler(CommandHandler("setvip", setvip)) # Registro KAN-34
         app.add_handler(CommandHandler("stats", stats))
         app.add_handler(CommandHandler("buscar", buscar))
         
