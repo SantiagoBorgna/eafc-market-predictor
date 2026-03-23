@@ -285,6 +285,27 @@ def buscar_jugador_por_nombre(nombre_parcial):
     finally:
         conn.close()
 
+def actualizar_vip_usuario(user_id, dias):
+    """
+    Actualiza a un usuario para que sea VIP por la cantidad de días especificada.
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            UPDATE suscriptores
+            SET is_vip = 1,
+                fecha_vencimiento_vip = datetime('now', '+' || ? || ' days')
+            WHERE chat_id = ?
+        ''', (str(dias), user_id))
+        conn.commit()
+        return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        print(f"Error al actualizar VIP: {e}")
+        return False
+    finally:
+        conn.close()
+
 # Bloque de prueba
 if __name__ == '__main__':
     print("--- 🧪 Test de Funciones CRUD ---")
