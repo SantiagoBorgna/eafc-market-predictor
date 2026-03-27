@@ -56,6 +56,16 @@ def init_db():
     )
     ''')
     
+    # Tabla: REDDIT_LEAKS
+    print("Creando tabla 'reddit_leaks'...")
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS reddit_leaks (
+        post_id TEXT PRIMARY KEY,
+        titulo TEXT,
+        fecha_detectada DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    
     # Crear índices para acelerar búsquedas
     print("Creando índices...")
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_slug ON jugadores(slug)')

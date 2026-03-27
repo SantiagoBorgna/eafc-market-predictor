@@ -379,6 +379,31 @@ def limpiar_vips_vencidos():
     finally:
         conn.close()
 
+def es_post_nuevo(post_id):
+    """Verifica si el post de Reddit ya fue notificado previamente"""
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM reddit_leaks WHERE post_id = ?", (post_id,))
+        return cursor.fetchone() is None
+    except sqlite3.Error as e:
+        print(f"Error al verificar post de Reddit: {e}")
+        return False
+    finally:
+        conn.close()
+
+def registrar_post(post_id, titulo):
+    """Marca un post de Reddit como ya notificado en la BD"""
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO reddit_leaks (post_id, titulo) VALUES (?, ?)", (post_id, titulo))
+        conn.commit()
+    except sqlite3.Error as e:
+        print(f"Error al registrar post de Reddit: {e}")
+    finally:
+        conn.close()
+
 # Bloque de prueba
 if __name__ == '__main__':
     print("--- 🧪 Test de Funciones CRUD ---")

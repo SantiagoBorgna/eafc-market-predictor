@@ -186,6 +186,40 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"Error en tarea periódica: {e}")
 
+async def tarea_reddit(context: ContextTypes.DEFAULT_TYPE):
+    from scrapers.tracker_reddit import chequear_filtraciones_reddit
+    from database.crud import obtener_suscriptores_separados
+    
+    filtracion = chequear_filtraciones_reddit()
+    if not filtracion:
+        return
+        
+    mensaje_vip = f"🚨 **FILTRACIÓN CONFIRMADA** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
+    mensaje_gratis = f"🚨 **FILTRACIÓN (Aviso con 15m de retraso)** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no perderte el próximo subidón de medias!*"
+    
+    listas = obtener_suscriptores_separados()
+    vips = listas.get('vip', [])
+    gratis = listas.get('gratis', [])
+    
+    VIP_GROUP_ID = os.getenv("VIP_GROUP_ID")
+    
+    for c_id in vips:
+        try:
+            await context.bot.send_message(chat_id=c_id, text=mensaje_vip, parse_mode='Markdown', disable_web_page_preview=False)
+        except Exception as e:
+            logging.error(f"Error enviando leak a VIP {c_id}: {e}")
+
+    # Doble check si el supergrupo de VIP no levantó is_vip explícito por x razón
+    if VIP_GROUP_ID and int(VIP_GROUP_ID) not in vips:
+        try:
+            await context.bot.send_message(chat_id=int(VIP_GROUP_ID), text=mensaje_vip, parse_mode='Markdown', disable_web_page_preview=False)
+        except Exception:
+            pass
+
+    # Programamos para los gratis (15 minutos)
+    if gratis:
+        context.job_queue.run_once(enviar_alertas_retrasadas, 900, data={'usuarios': gratis, 'mensaje': mensaje_gratis})
+
 async def tarea_limpieza_vips(context: ContextTypes.DEFAULT_TYPE):
     """
     Tarea diaria (Cron) para buscar usuarios VIP vencidos y pasarlos a Free.
@@ -545,6 +579,9 @@ if __name__ == "__main__":
         
         # Iniciar revisión periódica del feed (cada 60 segundos)
         app.job_queue.run_repeating(chequear_feed_periodico, interval=60, first=10)
+        
+        # Scraper anti-bloqueo de Telegram para Leaks de Reddit, cada 5 minutos
+        app.job_queue.run_repeating(tarea_reddit, interval=300, first=30)
         
         # Tarea diaria: Ejecutar limpieza de VIPs a las 00:00 (hora local de Argentina, que es UTC-3)
         # 00:00 local ARG -> 03:00 UTC
