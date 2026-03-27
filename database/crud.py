@@ -237,12 +237,23 @@ def obtener_suscriptores_separados():
     Listas = {'vip': [], 'gratis': []}
     
     try:
-        # Obtenemos chat_id y el flag de is_vip para separarlos en Python
-        cursor.execute("SELECT chat_id, is_vip FROM suscriptores")
+        import os
+        admin_id_env = os.getenv("ADMIN_ID")
+        admin_id = int(admin_id_env) if admin_id_env and admin_id_env.isdigit() else None
+        
+        # Obtenemos chat_id, el flag de is_vip y tipo_chat para filtrar privados
+        cursor.execute("SELECT chat_id, is_vip, tipo_chat FROM suscriptores")
         filas = cursor.fetchall()
         
-        for chat_id, is_vip in filas:
-            if is_vip:
+        for chat_id, is_vip, tipo_chat in filas:
+            es_admin = (chat_id == admin_id)
+            
+            # Filtro: Ignorar a los usuarios individuales (privados) que no sean el admin
+            if tipo_chat == 'private' and not es_admin:
+                continue
+            
+            # El admin siempre recibe las alertas al instante (actúa como VIP).
+            if is_vip or es_admin:
                 Listas['vip'].append(chat_id)
             else:
                 Listas['gratis'].append(chat_id)

@@ -201,6 +201,18 @@ async def tarea_limpieza_vips(context: ContextTypes.DEFAULT_TYPE):
         for chat_id in usuarios_vencidos:
             try:
                 await context.bot.send_message(chat_id=chat_id, text=mensaje)
+                
+                # Novedad: Si tenés el ID del Grupo VIP configurado, el bot los expulsa automáticamente.
+                VIP_GROUP_ID = os.getenv("VIP_GROUP_ID")
+                if VIP_GROUP_ID:
+                    try:
+                        # ban_chat_member expulsa al usuario. Podés usar unban_chat_member luego si querés que puedan volver a entrar si pagan de nuevo.
+                        await context.bot.ban_chat_member(chat_id=int(VIP_GROUP_ID), user_id=chat_id)
+                        await context.bot.unban_chat_member(chat_id=int(VIP_GROUP_ID), user_id=chat_id) # Esto solo lo elimina, no lo banea de por vida.
+                        logging.info(f"Usuario {chat_id} expulsado del grupo VIP {VIP_GROUP_ID} por vencimiento.")
+                    except Exception as e_kick:
+                        logging.error(f"Error expulsando a {chat_id} del grupo VIP: {e_kick}")
+                        
             except Exception as e:
                 logging.error(f"Error notificando fin de VIP a {chat_id}: {e}")
     else:
@@ -261,7 +273,8 @@ async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if update.effective_user.id != MI_ID_ADMIN:
-        return # Comando oculto para otros
+        await update.message.reply_text(f"⛔ Comando denegado. Tu ID de Telegram es {update.effective_user.id}, pero el ADMIN_ID en el archivo .env configurado es {MI_ID_ADMIN}. Reemplazalo en tu .env y reiniciá.")
+        return
 
     if len(context.args) < 2:
         await update.message.reply_text("⚠️ Uso: /setvip [ID_DEL_USUARIO] [DIAS]")
@@ -296,6 +309,12 @@ async def buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res_msg += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
     await update.message.reply_text(res_msg, parse_mode='Markdown')
 
+async def id_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Devuelve el ID del chat actual (útil para grupos)"""
+    chat_id = update.effective_chat.id
+    tipo = update.effective_chat.type
+    await update.message.reply_text(f"Este chat ({tipo}) tiene el ID: `{chat_id}`", parse_mode='Markdown')
+
 # --- 6. EJECUCIÓN DEL SISTEMA ---
 if __name__ == "__main__":
     if TOKEN:
@@ -315,9 +334,10 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("precio", precio))
         app.add_handler(CommandHandler("vip", vip))
-        app.add_handler(CommandHandler("setvip", setvip)) # Registro KAN-34
+        app.add_handler(CommandHandler("setvip", setvip))
         app.add_handler(CommandHandler("stats", stats))
         app.add_handler(CommandHandler("buscar", buscar))
+        app.add_handler(CommandHandler("id", id_chat))
         
         app.run_polling()
     else:
