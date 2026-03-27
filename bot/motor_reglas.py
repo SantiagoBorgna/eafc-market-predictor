@@ -47,13 +47,13 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
     requisitos = extraer_requisitos(texto_filtracion)
     
     if not requisitos:
-        return None # No se encontraron requisitos útiles en el leak
+        return None, {} # No se encontraron requisitos útiles en el leak
         
     # Buscamos en la BD todos los jugadores que cumplen (ojo, puede ser una lista grande si la BD está llena)
     jugadores_candidatos = buscar_jugador_por_requisito(requisitos)
     
     if not jugadores_candidatos:
-        return f"🔍 **Análisis de Leak:** Se requiere {requisitos}. No tenemos jugadores en la BD que cumplan esto aún."
+        return f"🔍 **Análisis de Leak:** Se requiere {requisitos}. No tenemos jugadores en la BD que cumplan esto aún.", requisitos
         
     # Filtramos las "oportunidades": jugadores que están a menos de un 15% de su precio mínimo histórico, o cuyo precio sea > 0
     oportunidades = []
@@ -85,7 +85,7 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
     else:
         mensaje += "No se detectaron oportunidades claras de inversión (los jugadores actuales que cumplen estos requisitos ya tienen precios inflados o no los tenemos registrados)."
         
-    return mensaje
+    return mensaje, requisitos
 
 # --- Bloque de Prueba ---
 if __name__ == '__main__':
@@ -97,12 +97,14 @@ if __name__ == '__main__':
     
     print("\n[TEST 1]")
     print(f"Texto: {texto_ejemplo_1}")
-    analisis_1 = analizar_filtracion_y_recomendar(texto_ejemplo_1)
+    analisis_1, req_1 = analizar_filtracion_y_recomendar(texto_ejemplo_1)
     print("Resultado:")
     print(analisis_1)
+    print(f"Requisitos extraídos: {req_1}")
     
     print("\n[TEST 2]")
     print(f"Texto: {texto_ejemplo_2}")
-    analisis_2 = analizar_filtracion_y_recomendar(texto_ejemplo_2)
+    analisis_2, req_2 = analizar_filtracion_y_recomendar(texto_ejemplo_2)
     print("Resultado:")
     print(analisis_2)
+    print(f"Requisitos extraídos: {req_2}")

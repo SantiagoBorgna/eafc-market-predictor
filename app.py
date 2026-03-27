@@ -145,7 +145,7 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                 logging.info(f"Filtración detectada: {titulo}")
                 
                 # Análisis mediante el Motor de Reglas
-                recomendacion = analizar_filtracion_y_recomendar(titulo)
+                recomendacion, requisitos_extraidos = analizar_filtracion_y_recomendar(titulo)
                 full_msg = f"🚨 **NUEVA FILTRACIÓN** 🚨\n\n{titulo}\n🔗 {link}"
                 if recomendacion:
                     full_msg += f"\n\n💡 **Recomendación:**\n{recomendacion}"
@@ -167,6 +167,21 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                         data={'ids': gratis, 'mensaje': full_msg}
                     )
                     logging.info("KAN-31: Alerta para usuarios Free programada en JobQueue.")
+                
+                # 3. Alerta de Twitter para el ADMIN (Integración X)
+                if recomendacion and "POSIBLES INVERSIONES" in recomendacion:
+                    liga_detectada = requisitos_extraidos.get('liga', 'una liga top')
+                    texto_tweet = f"🚨 ¡Nueva oportunidad detectada! Un jugador de {liga_detectada} está por dispararse. La alerta en tiempo real ya fue enviada a los usuarios VIP. Unite al bot: t.me/CardsBot"
+                    
+                    ADMIN_ID = os.getenv("ADMIN_ID")
+                    if ADMIN_ID:
+                        try:
+                            await context.bot.send_message(chat_id=int(ADMIN_ID), text=f"**[TWEET SUGERIDO]**\n\n{texto_tweet}", parse_mode='Markdown')
+                            logging.info("Alerta de Twitter enviada al admin.")
+                        except Exception as e:
+                            logging.error(f"Error enviando alerta de Twitter al admin: {e}")
+                    else:
+                        logging.warning("No se ha configurado el ADMIN_ID en el archivo .env.")
                         
     except Exception as e:
         logging.error(f"Error en tarea periódica: {e}")
@@ -235,7 +250,15 @@ async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Formato: /setvip [ID_DEL_USUARIO] [DIAS]
     """
     # Reemplazar con ID real para que solo nosotros podamos usarlo
-    MI_ID_ADMIN = 123456789 
+    MI_ID_ADMIN = os.getenv("ADMIN_ID")
+    if not MI_ID_ADMIN:
+        await update.message.reply_text("⚠️ ADMIN_ID no configurado en el sistema.")
+        return
+        
+    try:
+        MI_ID_ADMIN = int(MI_ID_ADMIN)
+    except ValueError:
+        return
     
     if update.effective_user.id != MI_ID_ADMIN:
         return # Comando oculto para otros
