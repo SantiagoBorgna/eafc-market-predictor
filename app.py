@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, ChatJoinRequestHandler
+from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, ChatJoinRequestHandler, ConversationHandler, MessageHandler, filters
 
 # --- IMPORTS DE LOGICA EXTERNA (FUNDAMENTALES) ---
 # Asegúrate de haber creado los archivos en /bot y /database como vimos antes
@@ -234,7 +234,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Gracias por registrarte. Este bot detecta automáticamente filtraciones y caídas de mercado en EA FC 25.\n\n"
             "Para continuar, elegí tu plan haciendo clic en uno de los comandos:\n\n"
             "🆓 /gratis - Recibís las alertas en el grupo gratuito con 15 minutos de retraso.\n"
-            "💎 /vip - Recibís las alertas al instante, con oportunidades de inversión seguras."
+            "💎 /vip - Recibís las alertas al instante, con oportunidades de inversión seguras.\n\n"
+            "💡 *Tip: Podés abrir el botón Menú de Telegram o usar /ayuda para ver mis comandos.*"
         )
         await update.message.reply_text(msj, parse_mode='Markdown')
         return
@@ -248,18 +249,107 @@ async def gratis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msj = (
         "¡Excelente elección! 🆓\n\n"
         f"Sumate a nuestro grupo gratuito haciendo clic acá:\n🔗 [Entrar al Grupo Gratis]({link})\n\n"
-        "💡 *Recordá que en ese grupo las alertas llegan con 15 minutos de retraso. Si alguna vez querés pasarte a Premium, simplemente enviame /vip por acá.*"
+        "💡 *Recordá que en ese grupo las alertas llegan con 15 minutos de retraso.*\n\n"
+        "💎 ¿Te arrepentiste y querés las alertas al instante? Tocá /vip"
     )
     await update.message.reply_text(msj, parse_mode='Markdown', disable_web_page_preview=True)
 
-async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Consulta de precio manual"""
-    if not context.args:
-        await update.message.reply_text("⚠️ Indica una URL de FutWiz después de /precio")
+async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra el estado de la suscripción del usuario"""
+    if update.effective_chat.type != 'private':
+        return # Solo respondemos al estado por MD para no spamear grupos
+        
+    chat_id = update.effective_chat.id
+    from database.crud import obtener_estado_suscripcion
+    estado = obtener_estado_suscripcion(chat_id)
+    
+    MI_ID_ADMIN = os.getenv("ADMIN_ID")
+    es_admin = (str(chat_id) == str(MI_ID_ADMIN))
+    
+    if not estado:
+        await update.message.reply_text("❌ No estás registrado en la base de datos. Enviá /start para registrarte primero.")
         return
-    await update.message.reply_text("⏳ Obteniendo precio en tiempo real...")
-    p = obtener_precio_actual(context.args[0])
-    await update.message.reply_text(f"💰 El precio es: **{p}** monedas.")
+        
+    if estado['is_vip'] or es_admin:
+        # El admin no tiene vencimiento aplicable en la DB usualmente, o podría tener NULL
+        vence = estado['vencimiento'] if estado['vencimiento'] else "Ilimitado"
+        msj = (
+            "👑 **Estado de tu Suscripción: VIP** 👑\n\n"
+            "✅ Tenés acceso completo a las alertas en tiempo real.\n"
+            f"📅 **Tu plan vence el:** {vence}\n\n"
+            "💡 *Si necesitás renovar, podés ver la info de pago usando /vip*"
+        )
+    else:
+        msj = (
+            "🆓 **Estado de tu Suscripción: GRATIS** 🆓\n\n"
+            "Actualmente recibís las alertas con retraso en nuestro grupo gratuito.\n\n"
+            "Para recibir las notificaciones **al instante** y comprar jugadores antes de que suban de precio, pasate a nuestro plan Premium tocando acá:\n"
+            "👉 /vip"
+        )
+        
+    await update.message.reply_text(msj, parse_mode='Markdown')
+
+async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Menú de ayuda con todos los comandos"""
+    msj = (
+        "🤖 **Menú de Ayuda - FutMetrics**\n\n"
+        "Comandos disponibles para interactuar conmigo:\n"
+        "🔸 /start - Menú principal y elección de planes.\n"
+        "🔸 /estado - Revisa tu plan actual y vencimiento.\n"
+        "🔸 /vip - Info sobre el plan Premium.\n"
+        "🔸 /gratis - Entrá a la comunidad gratuita.\n"
+        "🔸 /buscar - Buscador premium de cartas de FC 25.\n"
+        "🔸 /soporte - Hablá con un humano si tenés dudas o querés pagar.\n"
+        "🔸 /id - Te devuelve tu Telegram ID único."
+    )
+    await update.message.reply_text(msj, parse_mode='Markdown')
+
+async def soporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra el contacto de soporte"""
+    contacto = os.getenv("SUPPORT_CONTACT", "@TuAdminSoporte")
+    msj = (
+        f"👨‍💻 **Soporte y Contacto**\n\n"
+        f"Si tenés dudas, problemas técnicos o querés enviar el comprobante de tu pago VIP, escribile un mensaje privado a:\n"
+        f"👉 {contacto}\n\n"
+        f"Recordá siempre enviar tu *ID numérico* para que puedan encontrarte más rápido: `{update.effective_chat.id}`"
+    )
+    await update.message.reply_text(msj, parse_mode='Markdown')
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando de admin para enviar mensajes masivos a todos los usuarios."""
+    MI_ID_ADMIN = os.getenv("ADMIN_ID")
+    if str(update.effective_chat.id) != str(MI_ID_ADMIN):
+        return # Comando oculto
+        
+    if not context.args:
+        await update.message.reply_text("⚠️ Uso: /broadcast Mensaje que querés mandar a todos los usuarios registrados.")
+        return
+        
+    mensaje_masivo = " ".join(context.args)
+    mensaje_masivo = f"📢 **Mensaje Institucional** 📢\n\n{mensaje_masivo}"
+    
+    from database.crud import obtener_suscriptores
+    todos = obtener_suscriptores()
+    
+    if not todos:
+        await update.message.reply_text("⚠️ No hay ningún usuario registrado en la base de datos.")
+        return
+        
+    enviados = 0
+    errores = 0
+    await update.message.reply_text(f"⏳ Enviando broadcast masivo a {len(todos)} chats... esto puede demorar.")
+    
+    import asyncio
+    for c_id in todos:
+        try:
+            await context.bot.send_message(chat_id=c_id, text=mensaje_masivo, parse_mode='Markdown', disable_web_page_preview=True)
+            enviados += 1
+            await asyncio.sleep(0.05) # Pausa estricta anti-spam de Telegram (máximo 30 mensajes/segundo)
+        except Exception as e:
+            errores += 1
+            logging.error(f"Broadcast fallo para el ID {c_id}")
+            
+    await update.message.reply_text(f"✅ Broadcast finalizado con éxito.\n✔️ Enviados: {enviados}\n❌ Fallaron: {errores}")
 
 async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -276,7 +366,8 @@ async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "**¿Cómo activo mi plan?**\n"
         "1. Realizá la transferencia.\n"
         f"2. Asígnale al Admin de Soporte (@TuUsuarioAdmin) una captura del pago y enviale este ID tuyo: `{update.effective_chat.id}`\n"
-        "3. Apenas el Admin verifique tu pago, **este bot te va a enviar tu link de acceso directo** acá mismo automáticamente."
+        "3. Apenas el Admin verifique tu pago, **este bot te va a enviar tu link de acceso directo** acá mismo automáticamente.\n\n"
+        "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
     )
     await update.message.reply_text(msj, parse_mode='Markdown')
 
@@ -333,20 +424,58 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_s = len(obtener_suscriptores())
     await update.message.reply_text(f"📊 **Stats:**\n- Jugadores: {total_j}\n- Suscriptores: {total_s}", parse_mode='Markdown')
 
-async def buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Busca jugadores por nombre en la base de datos"""
-    if not context.args:
-        await update.message.reply_text("⚠️ Ejemplo: /buscar Messi")
-        return
-    query = " ".join(context.args)
-    resultados = buscar_jugador_por_nombre(query)
+# --- ESTADOS DE LA CONVERSACIÓN BUSCAR ---
+BUSCAR_NOMBRE, BUSCAR_VERSION = range(2)
+
+async def buscar_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Inicia la conversación para buscar una carta, exclusivo para VIP"""
+    chat_id = update.effective_chat.id
+    from database.crud import obtener_estado_suscripcion
+    estado_sub = obtener_estado_suscripcion(chat_id)
+    es_admin = (str(chat_id) == str(os.getenv("ADMIN_ID")))
+    
+    if not estado_sub or (not estado_sub['is_vip'] and not es_admin):
+        await update.message.reply_text("💎 **¡Función Premium!** 💎\n\nEl buscador de jugadores y precios en base de datos es una herramienta exclusiva para usuarios VIP.\n\nTocá /vip para actualizar tu plan y desbloquear esta función.")
+        return ConversationHandler.END
+
+    await update.message.reply_text("🔎 **Búsqueda de Jugador VIP**\n\nPor favor, escribí el **nombre** del jugador que buscás (ej: Messi, Neymar...).", parse_mode='Markdown')
+    return BUSCAR_NOMBRE
+
+async def buscar_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Guarda el nombre y pide la versión"""
+    context.user_data['buscar_nombre'] = update.message.text
+    await update.message.reply_text("Genial. Ahora escribí la **versión** de la carta (ej: Gold, TOTW, Icon, o enviá 'Cualquiera' si no sabés).")
+    return BUSCAR_VERSION
+
+async def buscar_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Realiza la búsqueda final con nombre y versión"""
+    version = update.message.text
+    nombre = context.user_data.get('buscar_nombre', '')
+    
+    from database.crud import buscar_jugador_por_nombre
+    resultados = buscar_jugador_por_nombre(nombre)
+    
+    if version.lower() != 'cualquiera':
+        resultados = [r for r in resultados if version.lower() in r['version_carta'].lower()]
+        
     if not resultados:
-        await update.message.reply_text(f"❌ No hay resultados para '{query}'.")
-        return
-    res_msg = f"🔍 **Resultados para '{query}':**\n\n"
+        await update.message.reply_text(f"❌ No encontré ninguna carta de {nombre} (Versión: {version}). Tocá /buscar para intentar de nuevo.")
+        context.user_data.clear()
+        return ConversationHandler.END
+        
+    res_msg = f"🔍 **Resultados para '{nombre}':**\n\n"
     for r in resultados[:10]:
         res_msg += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
+        
     await update.message.reply_text(res_msg, parse_mode='Markdown')
+    context.user_data.clear()
+    return ConversationHandler.END
+
+async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela la conversación actual"""
+    await update.message.reply_text("❌ Operación cancelada.")
+    context.user_data.clear()
+    return ConversationHandler.END
 
 async def id_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Devuelve el ID del chat actual (útil para grupos)"""
@@ -384,17 +513,35 @@ async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_
                 await context.bot.send_message(
                     chat_id=user_id, 
                     text="❌ **Acceso Denegado:** Tu solicitud para unirte al VIP fue rechazada. No tenés una suscripción activa o ya se venció. Si recién pagaste, enviale el comprobante al @Admin y pasale tu ID numérico usando /vip por acá.", 
-                    parse_mode='Markdown'
+    parse_mode='Markdown'
                 )
             except Exception as e:
                 logging.error(f"Error rechazando/avisando a {user_id}: {e}")
+
+from telegram import BotCommand
+from telegram.ext import Application
+
+async def setup_commands(application: Application):
+    """Configura el menú nativo de comandos de Telegram"""
+    comandos = [
+        BotCommand("start", "Menú principal y elección de planes"),
+        BotCommand("estado", "Tu plan actual y fecha de corte"),
+        BotCommand("vip", "Info sobre el plan Premium"),
+        BotCommand("gratis", "Unirte a la comunidad gratuita"),
+        BotCommand("buscar", "Buscador premium de cartas"),
+        BotCommand("soporte", "Atención al cliente y pagos"),
+        BotCommand("ayuda", "Mostrar manual del bot"),
+        BotCommand("id", "Te devuelve tu Telegram ID")
+    ]
+    await application.bot.set_my_commands(comandos)
 
 # --- 6. EJECUCIÓN DEL SISTEMA ---
 if __name__ == "__main__":
     if TOKEN:
         logging.info("Bot en línea. Iniciando JobQueue y Polling.")
         
-        app = ApplicationBuilder().token(TOKEN).build()
+        # Inicializa el bot y la aplicación
+        app = ApplicationBuilder().token(TOKEN).post_init(setup_commands).build()
         
         # Iniciar revisión periódica del feed (cada 60 segundos)
         app.job_queue.run_repeating(chequear_feed_periodico, interval=60, first=10)
@@ -406,12 +553,25 @@ if __name__ == "__main__":
         
         # Registro de comandos
         app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("ayuda", ayuda))
+        app.add_handler(CommandHandler("soporte", soporte))
+        app.add_handler(CommandHandler("broadcast", broadcast))
         app.add_handler(CommandHandler("gratis", gratis))
-        app.add_handler(CommandHandler("precio", precio))
+        app.add_handler(CommandHandler("estado", estado))
         app.add_handler(CommandHandler("vip", vip))
         app.add_handler(CommandHandler("setvip", setvip)) # Registro KAN-34
         app.add_handler(CommandHandler("stats", stats))
-        app.add_handler(CommandHandler("buscar", buscar))
+        # Conversation Handler para Buscar
+        buscar_conv_handler = ConversationHandler(
+            entry_points=[CommandHandler('buscar', buscar_start)],
+            states={
+                BUSCAR_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, buscar_nombre)],
+                BUSCAR_VERSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, buscar_version)],
+            },
+            fallbacks=[CommandHandler('cancelar', cancelar)]
+        )
+        app.add_handler(buscar_conv_handler)
+        
         app.add_handler(CommandHandler("id", id_chat))
         
         # Handler para filtrar gente que entra al grupo VIP

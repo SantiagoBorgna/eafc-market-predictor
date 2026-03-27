@@ -6,7 +6,10 @@ def _get_connection():
     db_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(db_dir, 'database.sqlite')
     # Aumentamos el timeout a 20 segundos para evitar errores "database is locked" en un entorno asíncrono
-    return sqlite3.connect(db_path, timeout=20.0)
+    conn = sqlite3.connect(db_path, timeout=20.0)
+    # Activamos modo WAL (Write-Ahead Logging) para permitir concurrencia de lectura/escritura simultánea sin bloqueos
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
 
 def insertar_jugador(futwiz_id, slug, nombre, rating, version_carta, liga, equipo, nacionalidad, posicion, posiciones_alternativas="", precio_actual=0, precio_historico_minimo=0):
     """
@@ -263,6 +266,24 @@ def obtener_suscriptores_separados():
     except sqlite3.Error as e:
         print(f"Error al obtener suscriptores separados: {e}")
         return {'vip': [], 'gratis': []}
+    finally:
+        conn.close()
+
+def obtener_estado_suscripcion(chat_id):
+    """
+    Devuelve un diccionario con el estado de la suscripción VIP y su fecha de vencimiento.
+    """
+    conn = _get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        # Extraemos solo la parte de la fecha (YYYY-MM-DD)
+        cursor.execute("SELECT is_vip, date(fecha_vencimiento_vip) as vencimiento FROM suscriptores WHERE chat_id = ?", (chat_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    except sqlite3.Error as e:
+        print(f"Error al obtener estado de suscripción: {e}")
+        return None
     finally:
         conn.close()
 

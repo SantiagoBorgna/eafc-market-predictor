@@ -150,9 +150,9 @@ def chequear_cartas_nuevas():
         if len(nuevos_agregados) > 10:
             nombres_juntos += f" y {len(nuevos_agregados)-10} más..."
             
-        return f"🚨 **REPORTE DE NUEVAS CARTAS EA FC** 🚨\nSe detectaron y agregaron {len(nuevos_agregados)} nuevas cartas a la base de datos:\n*{nombres_juntos}*"
-    else:
-        return "ℹ️ Revisión completada. No se encontraron cartas nuevas que no tuviésemos ya en la base de datos."
+        print(f"📦 [Silent DB Update] Se agregaron {len(nuevos_agregados)} nuevas cartas: {nombres_juntos}")
+        
+    return None # Volvemos el bot 100% silencioso para no enviar alertas falsas de cartas ya lanzadas
 
 if __name__ == '__main__':
     print(chequear_cartas_nuevas())
