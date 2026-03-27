@@ -5,6 +5,12 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.crud import insertar_jugador, _get_connection, obtener_jugador_por_futwiz_id
 from scrapers.seed_db import parsear_pagina_futwiz
+from functools import lru_cache
+
+@lru_cache(maxsize=50)
+def jugador_ya_existe_en_bd(futwiz_id):
+    """Verifica en SQLite si la carta existe y guarda el resultado en caché."""
+    return obtener_jugador_por_futwiz_id(futwiz_id) is not None
 
 def parsear_novedades_futwiz(url):
     """
@@ -38,8 +44,8 @@ def parsear_novedades_futwiz(url):
             futwiz_id = int(partes[-1])
             slug = partes[-2]
             
-            # Verificar si existe en BD antes de abrir la pagina individual de la novedad
-            if obtener_jugador_por_futwiz_id(futwiz_id):
+            # Verificar si existe en BD preguntando a la caché en memoria 
+            if jugador_ya_existe_en_bd(futwiz_id):
                 print(f"  ⏭️ Saltando novedad (ya existe en BD): {slug}")
                 continue
             
