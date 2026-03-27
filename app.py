@@ -5,8 +5,8 @@ import logging
 from dotenv import load_dotenv
 from curl_cffi import requests
 from bs4 import BeautifulSoup
-from telegram import Update
-from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, ChatJoinRequestHandler, ConversationHandler, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, ChatJoinRequestHandler, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
 
 # --- IMPORTS DE LOGICA EXTERNA (FUNDAMENTALES) ---
 # Asegúrate de haber creado los archivos en /bot y /database como vimos antes
@@ -387,23 +387,56 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Muestra información sobre la suscripción VIP
-   
+    Muestra información sobre la suscripción VIP y da a elegir la región para pricing regional
     """
     msj = (
         "💎 **Suscripción VIP** 💎\n\n"
         "• Alertas al instante (sin 15m de espera).\n"
-        "• Análisis detallado de inversión.\n"
-        "• Soporte 24/7.\n\n"
-        "💰 **Precio Mensual:** $5 USD / 5.000 ARS\n"
-        "💳 **Alias:** tu.bot.pago\n\n"
-        "**¿Cómo activo mi plan?**\n"
-        "1. Realizá la transferencia.\n"
-        f"2. Asígnale al Admin de Soporte (@TuUsuarioAdmin) una captura del pago y enviale este ID tuyo: `{update.effective_chat.id}`\n"
-        "3. Apenas el Admin verifique tu pago, **este bot te va a enviar tu link de acceso directo** acá mismo automáticamente.\n\n"
-        "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
+        "• Tracking en tiempo real de SBC Leaks.\n"
+        "• Descubridor e Historial de precios.\n\n"
+        "Para mostrarte los pases y precios correctos, seleccioná desde dónde nos hablás:"
     )
-    await update.message.reply_text(msj, parse_mode='Markdown')
+    
+    teclado = [
+        [InlineKeyboardButton("🇦🇷 Soy de Argentina", callback_data='vip_ar')],
+        [InlineKeyboardButton("🌍 Soy de otro país", callback_data='vip_int')]
+    ]
+    reply_markup = InlineKeyboardMarkup(teclado)
+    
+    await update.message.reply_text(msj, parse_mode='Markdown', reply_markup=reply_markup)
+
+async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Maneja las respuestas de los botones de la suscripción VIP"""
+    query = update.callback_query
+    await query.answer() # Evita que el botón de Telegram se quede "cargando"
+    
+    if query.data == 'vip_ar':
+        msj = (
+            "💎 **Suscripción VIP (Argentina)** 💎\n\n"
+            "💰 **Precio Mensual:** $5.000 ARS\n\n"
+            "🇦🇷 **Medios de pago:**\n"
+            "💳 **Alias (MercadoPago/Banco):** tu.bot.pago\n\n"
+            "**¿Cómo activo mi plan?**\n"
+            "1. Realizá la transferencia o giro.\n"
+            f"2. Contactá a nuestro Admin (@TuUsuarioAdmin) con tu captura de pago y enviale este ID tuyo: `{query.message.chat.id}`\n"
+            "3. Apenas el Admin lo verifique, **este bot te va a enviar tu link de acceso directo** acá mismo.\n\n"
+            "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
+        )
+    elif query.data == 'vip_int':
+        msj = (
+            "💎 **Suscripción VIP (Global)** 💎\n\n"
+            "💰 **Precio Mensual:** $5 USD\n\n"
+            "🌍 **Medios de pago:**\n"
+            "🟡 **Binance Pay ID (Cripto):** 123456789\n"
+            "🔵 **PayPal (USD):** paypal.me/TuNombre\n\n"
+            "**¿Cómo activo mi plan?**\n"
+            "1. Realizá la transferencia o giro.\n"
+            f"2. Contactá a nuestro Admin (@TuUsuarioAdmin) con tu captura de pago y enviale este ID tuyo: `{query.message.chat.id}`\n"
+            "3. Apenas el Admin lo verifique, **este bot te va a enviar tu link de acceso directo** acá mismo.\n\n"
+            "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
+        )
+        
+    await query.edit_message_text(text=msj, parse_mode='Markdown')
 
 async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -596,6 +629,7 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("gratis", gratis))
         app.add_handler(CommandHandler("estado", estado))
         app.add_handler(CommandHandler("vip", vip))
+        app.add_handler(CallbackQueryHandler(botones_vip, pattern='^vip_')) # Capta los botones vip_ar y vip_int
         app.add_handler(CommandHandler("setvip", setvip)) # Registro KAN-34
         app.add_handler(CommandHandler("stats", stats))
         # Conversation Handler para Buscar
