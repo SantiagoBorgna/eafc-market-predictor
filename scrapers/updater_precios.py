@@ -4,6 +4,9 @@ import time
 import re
 from bs4 import BeautifulSoup
 from curl_cffi import requests
+import random
+
+NAVEGADORES = ["chrome110", "chrome116", "chrome120", "edge99", "edge101", "safari15_5", "safari17_0"]
 
 # Agregar el directorio raíz al path para importar el módulo de base de datos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,7 +19,7 @@ def extraer_precio_futwiz(url):
     Retorna el precio como entero o 0 si hubo un error.
     """
     try:
-        response = requests.get(url, impersonate="chrome110", timeout=15)
+        response = requests.get(url, impersonate=random.choice(NAVEGADORES), timeout=15)
         if response.status_code != 200:
             print(f"Error {response.status_code} al acceder a {url}")
             return 0

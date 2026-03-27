@@ -4,6 +4,9 @@ import time
 import re
 from bs4 import BeautifulSoup
 from curl_cffi import requests
+import random
+
+NAVEGADORES = ["chrome110", "chrome116", "chrome120", "edge99", "edge101", "safari15_5", "safari17_0"]
 
 # Add root folder to sys_path to allow absolute imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,7 +21,7 @@ def parsear_pagina_futwiz(url):
     
     print(f"📡 Scrapeando: {url}")
     try:
-        response = requests.get(url, impersonate="chrome110", timeout=15)
+        response = requests.get(url, impersonate=random.choice(NAVEGADORES), timeout=15)
         if response.status_code != 200:
             print(f"Error {response.status_code} al acceder a {url}")
             return []
@@ -53,7 +56,7 @@ def parsear_pagina_futwiz(url):
             try:
                 # Pequeña pausa para no bombardear al servidor con request individuales tan rápido
                 time.sleep(1)
-                res_indiv = requests.get(url_jugador, impersonate="chrome110", timeout=15)
+                res_indiv = requests.get(url_jugador, impersonate=random.choice(NAVEGADORES), timeout=15)
                 soup_indiv = BeautifulSoup(res_indiv.text, 'html.parser')
                 
                 # Nombre
