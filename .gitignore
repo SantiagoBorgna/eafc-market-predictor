@@ -1,0 +1,5 @@
+.env
+*.sqlite
+bot.log
+__pycache__/
+*.pyc

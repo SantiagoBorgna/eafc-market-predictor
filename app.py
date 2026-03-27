@@ -17,8 +17,10 @@ from database.crud import (
     obtener_suscriptores_separados, 
     contar_jugadores, 
     buscar_jugador_por_nombre,
-    actualizar_vip_usuario  # Agregado para la KAN-34
+    actualizar_vip_usuario,  # Agregado para la KAN-34
+    limpiar_vips_vencidos
 )
+import datetime
 
 # Variables globales para el bot
 ultima_filtracion_vista = None
@@ -169,6 +171,26 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"Error en tarea periódica: {e}")
 
+async def tarea_limpieza_vips(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Tarea diaria (Cron) para buscar usuarios VIP vencidos y pasarlos a Free.
+    Luego les envía un mensaje automático de renovación.
+    """
+    logging.info("Iniciando limpieza diaria de VIPs vencidos...")
+    usuarios_vencidos = limpiar_vips_vencidos()
+    
+    if usuarios_vencidos:
+        logging.info(f"Se encontraron {len(usuarios_vencidos)} suscripciones vencidas. Notificando...")
+        mensaje = "Tu suscripción VIP ha finalizado. Usa /vip para renovar."
+        
+        for chat_id in usuarios_vencidos:
+            try:
+                await context.bot.send_message(chat_id=chat_id, text=mensaje)
+            except Exception as e:
+                logging.error(f"Error notificando fin de VIP a {chat_id}: {e}")
+    else:
+        logging.info("No se encontraron suscripciones VIP vencidas hoy.")
+
 # --- 5. COMANDOS DEL BOT (TELEGRAM HANDLERS) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -260,6 +282,11 @@ if __name__ == "__main__":
         
         # Iniciar revisión periódica del feed (cada 60 segundos)
         app.job_queue.run_repeating(chequear_feed_periodico, interval=60, first=10)
+        
+        # Tarea diaria: Ejecutar limpieza de VIPs a las 00:00 (hora local de Argentina, que es UTC-3)
+        # 00:00 local ARG -> 03:00 UTC
+        hora_ejecucion = datetime.time(hour=3, minute=0, tzinfo=datetime.timezone.utc)
+        app.job_queue.run_daily(tarea_limpieza_vips, time=hora_ejecucion)
         
         # Registro de comandos
         app.add_handler(CommandHandler("start", start))

@@ -306,6 +306,46 @@ def actualizar_vip_usuario(user_id, dias):
     finally:
         conn.close()
 
+def limpiar_vips_vencidos():
+    """
+    Busca usuarios VIP cuya fecha de vencimiento haya expirado (menor a la fecha actual),
+    los pasa a is_vip = 0 y retorna una lista con sus chat_ids.
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    # Usamos localtime para comparar con la hora actual del equipo (que es donde se corre el bot)
+    # o puede usarse datetime('now', 'localtime')
+    
+    chat_ids_vencidos = []
+    try:
+        # Encontrar los vencidos
+        cursor.execute('''
+            SELECT chat_id FROM suscriptores 
+            WHERE is_vip = 1 AND fecha_vencimiento_vip < datetime('now', 'localtime')
+        ''')
+        vencidos = cursor.fetchall()
+        
+        for fila in vencidos:
+            chat_ids_vencidos.append(fila[0])
+            
+        if chat_ids_vencidos:
+            # Actualizarlos
+            placeholders = ', '.join(['?'] * len(chat_ids_vencidos))
+            cursor.execute(f'''
+                UPDATE suscriptores
+                SET is_vip = 0, fecha_vencimiento_vip = NULL
+                WHERE chat_id IN ({placeholders})
+            ''', chat_ids_vencidos)
+            
+            conn.commit()
+            
+        return chat_ids_vencidos
+    except sqlite3.Error as e:
+        print(f"Error al limpiar VIPs vencidos: {e}")
+        return []
+    finally:
+        conn.close()
+
 # Bloque de prueba
 if __name__ == '__main__':
     print("--- 🧪 Test de Funciones CRUD ---")
