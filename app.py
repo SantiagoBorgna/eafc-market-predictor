@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler
+from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, ChatJoinRequestHandler
 
 # --- IMPORTS DE LOGICA EXTERNA (FUNDAMENTALES) ---
 # Asegúrate de haber creado los archivos en /bot y /database como vimos antes
@@ -226,10 +226,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_chat.username
     tipo = update.effective_chat.type
     
-    if registrar_suscriptor(chat_id, username, tipo):
-        await update.message.reply_text("¡Bienvenido! Ya estás suscrito a las Alertas Automáticas de FC 25. 🛎️")
-    else:
-        await update.message.reply_text("¡Hola! Ya te encuentras en nuestra lista de suscriptores. 🛎️")
+    es_nuevo = registrar_suscriptor(chat_id, username, tipo)
+    
+    if tipo == 'private':
+        msj = (
+            "¡Bienvenido a **FutMetrics**! ⚽📈\n\n"
+            "Gracias por registrarte. Este bot detecta automáticamente filtraciones y caídas de mercado en EA FC 25.\n\n"
+            "Para continuar, elegí tu plan haciendo clic en uno de los comandos:\n\n"
+            "🆓 /gratis - Recibís las alertas en el grupo gratuito con 15 minutos de retraso.\n"
+            "💎 /vip - Recibís las alertas al instante, con oportunidades de inversión seguras."
+        )
+        await update.message.reply_text(msj, parse_mode='Markdown')
+        return
+        
+    if es_nuevo:
+        await update.message.reply_text("¡Bienvenido! El grupo ya está suscrito a las Alertas. 🛎️")
+
+async def gratis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envía el enlace al grupo gratis"""
+    link = os.getenv("FREE_GROUP_LINK", "https://t.me/AcaPonesTuLinkGratis")
+    msj = (
+        "¡Excelente elección! 🆓\n\n"
+        f"Sumate a nuestro grupo gratuito haciendo clic acá:\n🔗 [Entrar al Grupo Gratis]({link})\n\n"
+        "💡 *Recordá que en ese grupo las alertas llegan con 15 minutos de retraso. Si alguna vez querés pasarte a Premium, simplemente enviame /vip por acá.*"
+    )
+    await update.message.reply_text(msj, parse_mode='Markdown', disable_web_page_preview=True)
 
 async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Consulta de precio manual"""
@@ -252,7 +273,10 @@ async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Soporte 24/7.\n\n"
         "💰 **Precio Mensual:** $5 USD / 5.000 ARS\n"
         "💳 **Alias:** tu.bot.pago\n\n"
-        "Escribe a @SoporteBot con tu comprobante para activar tu cuenta."
+        "**¿Cómo activo mi plan?**\n"
+        "1. Realizá la transferencia.\n"
+        f"2. Asígnale al Admin de Soporte (@TuUsuarioAdmin) una captura del pago y enviale este ID tuyo: `{update.effective_chat.id}`\n"
+        "3. Apenas el Admin verifique tu pago, **este bot te va a enviar tu link de acceso directo** acá mismo automáticamente."
     )
     await update.message.reply_text(msj, parse_mode='Markdown')
 
@@ -284,7 +308,22 @@ async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dias = int(context.args[1])
 
     if actualizar_vip_usuario(user_id, dias):
-        await update.message.reply_text(f"✅ Usuario {user_id} actualizado a VIP por {dias} días.")
+        await update.message.reply_text(f"✅ Usuario {user_id} actualizado a VIP por {dias} días en la base de datos.")
+        
+        # Le enviamos el acceso por privado al usuario
+        link = os.getenv("VIP_GROUP_LINK", "https://t.me/AcaPonesTuLinkVIP")
+        mensaje_exito = (
+            "🎉 **¡Tu pago fue aprobado!** 🎉\n\n"
+            "Ya tenés el plan VIP activo. Unite al grupo privado tocando acá abajo:\n"
+            f"🔗 [Acceso VIP Exclusivo]({link})\n\n"
+            f"⏳ Tu suscripción dura {dias} días."
+        )
+        try:
+            await context.bot.send_message(chat_id=user_id, text=mensaje_exito, parse_mode='Markdown', disable_web_page_preview=True)
+            await update.message.reply_text(f"✉️ El usuario recibió su link mágico de entrada por privado.")
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ El usuario es VIP en la BD, pero NO le pudimos mandar el link por MD (tal vez detuvo el bot). Error: {e}")
+            
     else:
         await update.message.reply_text("❌ No se encontró al usuario en la base de datos.")
 
@@ -315,6 +354,41 @@ async def id_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tipo = update.effective_chat.type
     await update.message.reply_text(f"Este chat ({tipo}) tiene el ID: `{chat_id}`", parse_mode='Markdown')
 
+async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Aprueba o rechaza automáticamente a los que intentan unirse al VIP con el link compartido.
+    Requisito: Activar "Aprobar nuevos miembros" / "Solicitudes de unión" en Telegram para el link de invitación.
+    """
+    request = update.chat_join_request
+    if not request: return
+    
+    user_id = request.from_user.id
+    chat_id = request.chat.id
+    
+    VIP_GROUP_ID = os.getenv("VIP_GROUP_ID")
+    
+    # Solo interceptamos solicitudes dirigidas al grupo VIP
+    if VIP_GROUP_ID and str(chat_id) == VIP_GROUP_ID:
+        listas = obtener_suscriptores_separados() # Trae ['vip'] y ['gratis'] (el admin está incluido como vip)
+        
+        if user_id in listas['vip']:
+            try:
+                await request.approve()
+                logging.info(f"Usuario {user_id} aprobado para entrar al grupo VIP.")
+            except Exception as e:
+                logging.error(f"Error aprobando solicitud de {user_id}: {e}")
+        else:
+            try:
+                await request.decline()
+                logging.info(f"Usuario {user_id} rechazado del VIP (no tiene plan).")
+                await context.bot.send_message(
+                    chat_id=user_id, 
+                    text="❌ **Acceso Denegado:** Tu solicitud para unirte al VIP fue rechazada. No tenés una suscripción activa o ya se venció. Si recién pagaste, enviale el comprobante al @Admin y pasale tu ID numérico usando /vip por acá.", 
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logging.error(f"Error rechazando/avisando a {user_id}: {e}")
+
 # --- 6. EJECUCIÓN DEL SISTEMA ---
 if __name__ == "__main__":
     if TOKEN:
@@ -332,12 +406,16 @@ if __name__ == "__main__":
         
         # Registro de comandos
         app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("gratis", gratis))
         app.add_handler(CommandHandler("precio", precio))
         app.add_handler(CommandHandler("vip", vip))
-        app.add_handler(CommandHandler("setvip", setvip))
+        app.add_handler(CommandHandler("setvip", setvip)) # Registro KAN-34
         app.add_handler(CommandHandler("stats", stats))
         app.add_handler(CommandHandler("buscar", buscar))
         app.add_handler(CommandHandler("id", id_chat))
+        
+        # Handler para filtrar gente que entra al grupo VIP
+        app.add_handler(ChatJoinRequestHandler(manejar_solicitud_union))
         
         app.run_polling()
     else:

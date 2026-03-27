@@ -5,7 +5,8 @@ def _get_connection():
     # Helper para conectarse apuntando siempre al archivo correcto
     db_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(db_dir, 'database.sqlite')
-    return sqlite3.connect(db_path)
+    # Aumentamos el timeout a 20 segundos para evitar errores "database is locked" en un entorno asíncrono
+    return sqlite3.connect(db_path, timeout=20.0)
 
 def insertar_jugador(futwiz_id, slug, nombre, rating, version_carta, liga, equipo, nacionalidad, posicion, posiciones_alternativas="", precio_actual=0, precio_historico_minimo=0):
     """
