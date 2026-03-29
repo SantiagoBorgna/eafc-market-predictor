@@ -410,28 +410,36 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer() # Evita que el botón de Telegram se quede "cargando"
     
+    support_contact = os.getenv("SUPPORT_CONTACT", "@TuUsuarioAdmin")
+    
     if query.data == 'vip_ar':
+        mp_link = os.getenv("MP_SUBSCRIPTION_LINK", "Configurar link en .env")
+        alias_pago = os.getenv("PAYMENT_ALIAS", "Tu alias no configurado en .env")
         msj = (
-            "💎 **Suscripción VIP (Argentina)** 💎\n\n"
+            "💎 **Suscripción VIP** 💎\n\n"
             "💰 **Precio Mensual:** $5.000 ARS\n\n"
-            "🇦🇷 **Medios de pago:**\n"
-            "💳 **Alias (MercadoPago/Banco):** tu.bot.pago\n\n"
-            "**¿Cómo activo mi plan?**\n"
-            "1. Realizá la transferencia o giro.\n"
-            f"2. Contactá a nuestro Admin (@TuUsuarioAdmin) con tu captura de pago y enviale este ID tuyo: `{query.message.chat.id}`\n"
-            "3. Apenas el Admin lo verifique, **este bot te va a enviar tu link de acceso directo** acá mismo.\n\n"
+            "Podés elegir entre **dos métodos** para abonar:\n\n"
+            "1️⃣ **Débito Automático Mensual** (Mercado Pago)\n"
+            "No tenés que acordarte de pagar todos los meses. Suscribirte al débito automático tocando el enlace:\n"
+            f"👉 [Suscribirme con Mercado Pago]({mp_link})\n\n"
+            "2️⃣ **Transferencia Manual 1 Mes**\n"
+            f"💳 **Alias):** {alias_pago}\n\n"
+            "**¿Cómo activo mi plan en ambos casos?**\n"
+            "1. Realizá la suscripción o transferencia.\n"
+            f"2. Contactá a nuestro Admin ({support_contact}) con tu comprobante y enviale este ID tuyo: `{query.message.chat.id}`\n"
+            "3. Apenas el Admin lo verifique, **este bot te va a habilitar el acceso VIP** por 30 días acá mismo.\n\n"
             "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
         )
     elif query.data == 'vip_int':
         msj = (
-            "💎 **Suscripción VIP (Global)** 💎\n\n"
+            "💎 **Suscripción VIP** 💎\n\n"
             "💰 **Precio Mensual:** $5 USD\n\n"
             "🌍 **Medios de pago:**\n"
             "🟡 **Binance Pay ID (Cripto):** 123456789\n"
             "🔵 **PayPal (USD):** paypal.me/TuNombre\n\n"
             "**¿Cómo activo mi plan?**\n"
             "1. Realizá la transferencia o giro.\n"
-            f"2. Contactá a nuestro Admin (@TuUsuarioAdmin) con tu captura de pago y enviale este ID tuyo: `{query.message.chat.id}`\n"
+            f"2. Contactá a nuestro Admin ({support_contact}) con tu captura de pago y enviale este ID tuyo: `{query.message.chat.id}`\n"
             "3. Apenas el Admin lo verifique, **este bot te va a enviar tu link de acceso directo** acá mismo.\n\n"
             "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
         )
@@ -509,14 +517,70 @@ async def buscar_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return BUSCAR_NOMBRE
 
 async def buscar_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Guarda el nombre y pide la versión"""
-    context.user_data['buscar_nombre'] = update.message.text
-    await update.message.reply_text("Genial. Ahora escribí la **versión** de la carta (ej: Gold, TOTW, Icon, o enviá 'Cualquiera' si no sabés).")
+    """Guarda el nombre y arma un menú de botones con las versiones encontradas"""
+    nombre = update.message.text
+    context.user_data['buscar_nombre'] = nombre
+    
+    from database.crud import buscar_jugador_por_nombre
+    resultados = buscar_jugador_por_nombre(nombre)
+    
+    if not resultados:
+        await update.message.reply_text(f"❌ No encontré ninguna carta de '{nombre}'. Tocá /buscar para intentar de nuevo.")
+        context.user_data.clear()
+        return ConversationHandler.END
+        
+    versiones = list(set(r['version_carta'] for r in resultados))
+    versiones.sort() # Ordenar alfabéticamente
+    
+    # Si solo hay una versión, la mostramos directamente para ahorrarle un paso al usuario
+    if len(versiones) == 1:
+        res_msg = f"🔍 **Resultados para '{nombre}':**\n\n"
+        for r in resultados[:10]:
+            res_msg += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
+            
+        await update.message.reply_text(res_msg, parse_mode='Markdown')
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    # Guardar temporalmente las versiones para los botones
+    context.user_data['versiones'] = versiones
+    
+    # Armar teclado dinámico, 2 botones por fila
+    teclado = []
+    fila_actual = []
+    for idx, v in enumerate(versiones):
+        fila_actual.append(InlineKeyboardButton(v, callback_data=f"v_{idx}"))
+        if len(fila_actual) == 2:
+            teclado.append(fila_actual)
+            fila_actual = []
+    if fila_actual:
+        teclado.append(fila_actual)
+        
+    teclado.append([InlineKeyboardButton("🌟 Todas", callback_data="v_todas")])
+    
+    reply_markup = InlineKeyboardMarkup(teclado)
+    await update.message.reply_text("Genial. Encontré estas versiones. Elegí la que buscás:", reply_markup=reply_markup)
     return BUSCAR_VERSION
 
 async def buscar_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Realiza la búsqueda final con nombre y versión"""
-    version = update.message.text
+    """Realiza la búsqueda final con la versión seleccionada por botón o texto"""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        accion = query.data
+        
+        versiones = context.user_data.get('versiones', [])
+        if accion == "v_todas":
+            version = "cualquiera"
+        else:
+            try:
+                idx = int(accion.split('_')[1])
+                version = versiones[idx]
+            except:
+                version = "cualquiera"
+    else:
+        version = update.message.text
+
     nombre = context.user_data.get('buscar_nombre', '')
     
     from database.crud import buscar_jugador_por_nombre
@@ -526,7 +590,11 @@ async def buscar_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
         resultados = [r for r in resultados if version.lower() in r['version_carta'].lower()]
         
     if not resultados:
-        await update.message.reply_text(f"❌ No encontré ninguna carta de {nombre} (Versión: {version}). Tocá /buscar para intentar de nuevo.")
+        msg = f"❌ No encontré ninguna carta de {nombre} (Versión: {version}). Tocá /buscar para intentar de nuevo."
+        if update.callback_query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
         context.user_data.clear()
         return ConversationHandler.END
         
@@ -534,7 +602,11 @@ async def buscar_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for r in resultados[:10]:
         res_msg += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
         
-    await update.message.reply_text(res_msg, parse_mode='Markdown')
+    if update.callback_query:
+        await query.edit_message_text(res_msg, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(res_msg, parse_mode='Markdown')
+        
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -637,7 +709,10 @@ if __name__ == "__main__":
             entry_points=[CommandHandler('buscar', buscar_start)],
             states={
                 BUSCAR_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, buscar_nombre)],
-                BUSCAR_VERSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, buscar_version)],
+                BUSCAR_VERSION: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, buscar_version),
+                    CallbackQueryHandler(buscar_version, pattern='^v_')
+                ],
             },
             fallbacks=[CommandHandler('cancelar', cancelar)]
         )
