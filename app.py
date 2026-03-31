@@ -412,7 +412,22 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     support_contact = os.getenv("SUPPORT_CONTACT", "@TuUsuarioAdmin")
     
-    if query.data == 'vip_ar':
+    if query.data == 'vip_inicio':
+        msj = (
+            "💎 **Suscripción VIP** 💎\n\n"
+            "• Alertas al instante.\n"
+            "• Tracking en tiempo real de SBC Leaks.\n"
+            "• Descubridor e Historial de precios.\n\n"
+            "Para continuar, seleccioná desde dónde nos hablás:"
+        )
+        teclado = [
+            [InlineKeyboardButton("🇦🇷 Soy de Argentina", callback_data='vip_ar')],
+            [InlineKeyboardButton("🌍 Soy de otro país", callback_data='vip_int')]
+        ]
+        reply_markup = InlineKeyboardMarkup(teclado)
+        await query.edit_message_text(text=msj, parse_mode='Markdown', reply_markup=reply_markup)
+        
+    elif query.data == 'vip_ar':
         mp_link = os.getenv("MP_SUBSCRIPTION_LINK", "Configurar link en .env")
         alias_pago = os.getenv("PAYMENT_ALIAS", "Tu alias no configurado en .env")
         msj = (
@@ -430,21 +445,51 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "3. Apenas el Admin lo verifique, **este bot te va a habilitar el acceso VIP** por 30 días acá mismo.\n\n"
             "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
         )
+        teclado = [[InlineKeyboardButton("⬅️ Volver", callback_data='vip_inicio')]]
+        await query.edit_message_text(text=msj, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(teclado))
+        
     elif query.data == 'vip_int':
         msj = (
-            "💎 **Suscripción VIP** 💎\n\n"
+            "💎 **Suscripción VIP Internacional** 💎\n\n"
             "💰 **Precio Mensual:** $5 USD\n\n"
-            "🌍 **Medios de pago:**\n"
-            "🟡 **Binance Pay ID (Cripto):** 123456789\n"
-            "🔵 **PayPal (USD):** paypal.me/TuNombre\n\n"
-            "**¿Cómo activo mi plan?**\n"
-            "1. Realizá la transferencia.\n"
-            f"2. Contactá a nuestro Admin ({support_contact}) con tu captura de pago y enviale tu ID: `{query.message.chat.id}`\n"
-            "3. Apenas el Admin lo verifique, **este bot te va a enviar tu link de acceso directo** acá mismo.\n\n"
-            "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
+            "Elegí tu método de pago preferido para ver las instrucciones exactas:"
         )
-        
-    await query.edit_message_text(text=msj, parse_mode='Markdown')
+        teclado = [
+            [InlineKeyboardButton("🟡 USDT / Binance", callback_data='vip_binance')],
+            [InlineKeyboardButton("🔵 PayPal", callback_data='vip_paypal')],
+            [InlineKeyboardButton("⬅️ Volver", callback_data='vip_inicio')]
+        ]
+        reply_markup = InlineKeyboardMarkup(teclado)
+        await query.edit_message_text(text=msj, parse_mode='Markdown', reply_markup=reply_markup)
+
+    elif query.data == 'vip_binance':
+        binance_addr = os.getenv("BINANCE_ADDRESS", "Tu dirección no configurada en .env")
+        msj = (
+            "🟡 **Pago Cripto (USDT)** 🟡\n\n"
+            "¡Perfecto! Sigue estos pasos para activar tu mes:\n\n"
+            "1️⃣ Mandá **5 USDT** a la siguiente dirección:\n"
+            f"`{binance_addr}`\n\n"
+            "⚠️ **IMPORTANTE:** Asegurate de usar la red **BNB Smart Chain (BEP20)**.\n\n"
+            "2️⃣ Cuando termines, mandá una captura del pago o el ID de transacción (TxID) a nuestro admin:\n"
+            f"👉 {support_contact}\n\n"
+            f"3️⃣ Pasale tu número de ID para que te habilite el bot instantáneamente: `{query.message.chat.id}`"
+        )
+        teclado = [[InlineKeyboardButton("⬅️ Volver", callback_data='vip_int')]]
+        await query.edit_message_text(text=msj, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(teclado))
+    
+    elif query.data == 'vip_paypal':
+        paypal_link = os.getenv("PAYPAL_LINK", "https://paypal.me/AcaPonTuLinkDePaypal")
+        msj = (
+            "🔵 **Pago con PayPal** 🔵\n\n"
+            "¡Excelente! Sigue estos pasos para comenzar a ganar:\n\n"
+            "1️⃣ Ingresá al siguiente enlace y aboná **$5 USD**:\n"
+            f"🔗 [Abonar Suscripción]({paypal_link})\n\n"
+            "2️⃣ Cuando termines, enviale el comprobante del pago a nuestro admin:\n"
+            f"👉 {support_contact}\n\n"
+            f"3️⃣ Pasale tu número de ID para que te habilite el bot instantáneamente: `{query.message.chat.id}`"
+        )
+        teclado = [[InlineKeyboardButton("⬅️ Volver", callback_data='vip_int')]]
+        await query.edit_message_text(text=msj, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(teclado))
 
 async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
