@@ -17,7 +17,7 @@ from database.crud import (
     obtener_suscriptores_separados, 
     contar_jugadores, 
     buscar_jugador_por_nombre,
-    actualizar_vip_usuario,  # Agregado para la KAN-34
+    actualizar_vip_usuario,
     limpiar_vips_vencidos
 )
 import datetime
@@ -25,7 +25,7 @@ import datetime
 # Variables globales para el bot
 ultima_filtracion_vista = None
 
-# --- 1. CONFIGURACIÓN DE ENTORNO Y LOGS (KAN-11) ---
+# --- 1. CONFIGURACIÓN DE ENTORNO Y LOGS ---
 # Registro de actividad para debugear errores de conexión o de scraping
 logging.basicConfig(
     filename='bot.log', 
@@ -70,7 +70,7 @@ def get_player_price_futwiz(player_id, player_slug, fc_version=25):
         logging.error(f"Error de red en get_player_price_futwiz: {e}")
         return f"Error de conexión: {e}"
 
-# --- 3. LÓGICA DE PRECIOS DEL BOT (KAN-8 y KAN-9) ---
+# --- 3. LÓGICA DE PRECIOS DEL BOT ---
 def limpiar_precio(precio_texto):
     """Limpia el texto del precio y lo convierte a entero (ej: 55K -> 55000)"""
     if not precio_texto or any(x in precio_texto for x in ["No listado", "Error", "Extinto"]):
@@ -99,12 +99,12 @@ def obtener_precio_actual(url_jugador):
         logging.error(f"Error en obtener_precio_actual: {e}")
         return 0
 
-# --- 4. TAREAS AUTOMÁTICAS: KAN-31 (DELAY) Y KAN-32 (TEXTO VIP) ---
+# --- 4. TAREAS AUTOMÁTICAS: (TEXTO VIP) ---
 
 async def enviar_alerta_retrasada(context: ContextTypes.DEFAULT_TYPE):
     """
-    KAN-31: Envía la alerta a usuarios Free tras 15 minutos.
-    KAN-32: Concatena el mensaje de invitación a VIP.
+    Envía la alerta a usuarios Free tras 15 minutos.
+    Concatena el mensaje de invitación a VIP.
     """
     datos = context.job.data
     chat_ids_gratis = datos['ids']
@@ -195,7 +195,7 @@ async def tarea_reddit(context: ContextTypes.DEFAULT_TYPE):
         return
         
     mensaje_vip = f"🚨 **FILTRACIÓN CONFIRMADA** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
-    mensaje_gratis = f"🚨 **FILTRACIÓN (Aviso con 15m de retraso)** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no perderte el próximo subidón de medias!*"
+    mensaje_gratis = f"🚨 **FILTRACIÓN** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no llegar tarde al próximo subidón de precio!*"
     
     listas = obtener_suscriptores_separados()
     vips = listas.get('vip', [])
@@ -391,10 +391,10 @@ async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     msj = (
         "💎 **Suscripción VIP** 💎\n\n"
-        "• Alertas al instante (sin 15m de espera).\n"
+        "• Alertas al instante.\n"
         "• Tracking en tiempo real de SBC Leaks.\n"
         "• Descubridor e Historial de precios.\n\n"
-        "Para mostrarte los pases y precios correctos, seleccioná desde dónde nos hablás:"
+        "Para continuar, seleccioná desde dónde nos hablás:"
     )
     
     teclado = [
@@ -423,7 +423,7 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "No tenés que acordarte de pagar todos los meses. Suscribirte al débito automático tocando el enlace:\n"
             f"👉 [Suscribirme con Mercado Pago]({mp_link})\n\n"
             "2️⃣ **Transferencia Manual 1 Mes**\n"
-            f"💳 **Alias):** {alias_pago}\n\n"
+            f"💳 **Alias:** {alias_pago}\n\n"
             "**¿Cómo activo mi plan en ambos casos?**\n"
             "1. Realizá la suscripción o transferencia.\n"
             f"2. Contactá a nuestro Admin ({support_contact}) con tu comprobante y enviale este ID tuyo: `{query.message.chat.id}`\n"
@@ -438,8 +438,8 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🟡 **Binance Pay ID (Cripto):** 123456789\n"
             "🔵 **PayPal (USD):** paypal.me/TuNombre\n\n"
             "**¿Cómo activo mi plan?**\n"
-            "1. Realizá la transferencia o giro.\n"
-            f"2. Contactá a nuestro Admin ({support_contact}) con tu captura de pago y enviale este ID tuyo: `{query.message.chat.id}`\n"
+            "1. Realizá la transferencia.\n"
+            f"2. Contactá a nuestro Admin ({support_contact}) con tu captura de pago y enviale tu ID: `{query.message.chat.id}`\n"
             "3. Apenas el Admin lo verifique, **este bot te va a enviar tu link de acceso directo** acá mismo.\n\n"
             "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
         )
@@ -467,11 +467,15 @@ async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if len(context.args) < 2:
-        await update.message.reply_text("⚠️ Uso: /setvip [ID_DEL_USUARIO] [DIAS]")
+        await update.message.reply_text("⚠️ Uso: /setvip [ID_DEL_USUARIO] [DIAS]\nEjemplo: /setvip 123456789 30")
         return
 
-    user_id = int(context.args[0])
-    dias = int(context.args[1])
+    try:
+        user_id = int(context.args[0])
+        dias = int(context.args[1])
+    except ValueError:
+        await update.message.reply_text("⚠️ Error: El ID del usuario y los días deben ser números enteros. Recordale al usuario que toque /vip para pasarte su ID numérico.")
+        return
 
     if actualizar_vip_usuario(user_id, dias):
         await update.message.reply_text(f"✅ Usuario {user_id} actualizado a VIP por {dias} días en la base de datos.")
@@ -479,13 +483,14 @@ async def setvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Le enviamos el acceso por privado al usuario
         link = os.getenv("VIP_GROUP_LINK", "https://t.me/AcaPonesTuLinkVIP")
         mensaje_exito = (
-            "🎉 **¡Tu pago fue aprobado!** 🎉\n\n"
+            "🎉 <b>¡Tu pago fue aprobado!</b> 🎉\n\n"
             "Ya tenés el plan VIP activo. Unite al grupo privado tocando acá abajo:\n"
-            f"🔗 [Acceso VIP Exclusivo]({link})\n\n"
+            f"🔗 <a href='{link}'>Acceso VIP Exclusivo</a>\n\n"
             f"⏳ Tu suscripción dura {dias} días."
         )
         try:
-            await context.bot.send_message(chat_id=user_id, text=mensaje_exito, parse_mode='Markdown', disable_web_page_preview=True)
+            # Usando HTML en lugar de Markdown porque Markdown en Telegram se rompe si el enlace VIP contiene _ o símbolos raros
+            await context.bot.send_message(chat_id=user_id, text=mensaje_exito, parse_mode='HTML')
             await update.message.reply_text(f"✉️ El usuario recibió su link mágico de entrada por privado.")
         except Exception as e:
             await update.message.reply_text(f"⚠️ El usuario es VIP en la BD, pero NO le pudimos mandar el link por MD (tal vez detuvo el bot). Error: {e}")
@@ -620,7 +625,7 @@ async def id_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Devuelve el ID del chat actual (útil para grupos)"""
     chat_id = update.effective_chat.id
     tipo = update.effective_chat.type
-    await update.message.reply_text(f"Este chat ({tipo}) tiene el ID: `{chat_id}`", parse_mode='Markdown')
+    await update.message.reply_text(f"Tu ID es: `{chat_id}`", parse_mode='Markdown')
 
 async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -637,9 +642,12 @@ async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_
     
     # Solo interceptamos solicitudes dirigidas al grupo VIP
     if VIP_GROUP_ID and str(chat_id) == VIP_GROUP_ID:
-        listas = obtener_suscriptores_separados() # Trae ['vip'] y ['gratis'] (el admin está incluido como vip)
+        from database.crud import obtener_estado_suscripcion
+        estado_sub = obtener_estado_suscripcion(user_id)
+        es_admin = (str(user_id) == os.getenv("ADMIN_ID"))
         
-        if user_id in listas['vip']:
+        # Si es admin o su estado is_vip es verdadero
+        if es_admin or (estado_sub and estado_sub['is_vip']):
             try:
                 await request.approve()
                 logging.info(f"Usuario {user_id} aprobado para entrar al grupo VIP.")
@@ -651,8 +659,8 @@ async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_
                 logging.info(f"Usuario {user_id} rechazado del VIP (no tiene plan).")
                 await context.bot.send_message(
                     chat_id=user_id, 
-                    text="❌ **Acceso Denegado:** Tu solicitud para unirte al VIP fue rechazada. No tenés una suscripción activa o ya se venció. Si recién pagaste, enviale el comprobante al @Admin y pasale tu ID numérico usando /vip por acá.", 
-    parse_mode='Markdown'
+                    text="❌ <b>Acceso Denegado:</b> Tu solicitud para unirte al VIP fue rechazada. No tenés una suscripción activa o ya se venció. Si recién pagaste, enviale el comprobante al @Admin y pasale tu ID numérico usando /vip por acá.", 
+                    parse_mode='HTML'
                 )
             except Exception as e:
                 logging.error(f"Error rechazando/avisando a {user_id}: {e}")
@@ -667,7 +675,7 @@ async def setup_commands(application: Application):
         BotCommand("estado", "Tu plan actual y fecha de corte"),
         BotCommand("vip", "Info sobre el plan Premium"),
         BotCommand("gratis", "Unirte a la comunidad gratuita"),
-        BotCommand("buscar", "Buscador premium de cartas"),
+        BotCommand("buscar", "Buscador de cartas"),
         BotCommand("soporte", "Atención al cliente y pagos"),
         BotCommand("ayuda", "Mostrar manual del bot"),
         BotCommand("id", "Te devuelve tu Telegram ID")
