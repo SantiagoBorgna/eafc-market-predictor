@@ -36,38 +36,43 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # --- 2. FUNCIONES DE BÚSQUEDA AVANZADA ---
-def get_player_price_futwiz(player_id, player_slug, fc_version=25):
+def get_player_price_futwiz(player_id, player_slug, fc_version=26):
     """
-    Obtiene el precio de un jugador desde Futwiz para una versión específica de EA FC.
-    fc_version: El año del juego (ej: 25 para FC25, 26 para FC26, 27 para FC27)
+    Obtiene el precio de un jugador desde Futwiz usando la API FC26.
     """
-    # La URL en futwiz sigue este formato general
-    url = f"https://www.futwiz.com/en/fc{fc_version}/player/{player_slug}/{player_id}"
-    logging.info(f"Iniciando consulta avanzada en Futwiz: {url}")
+    url = f"https://www.futwiz.com/fc{fc_version}/players"
+    headers = {
+        'accept': 'text/x-component',
+        'content-type': 'text/plain;charset=UTF-8',
+        'next-action': '7f14f6fdfcf68078a40fee222c3416dc2d522611c3',
+    }
+    
+    # Buscamos por slug, devolviendo límite muy bajo
+    data = f'[{fc_version},{{"mode":"search","filters":{{}},"search":"{player_slug}","pagination":{{"page":1,"limit":5}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
+    
+    logging.info(f"Iniciando consulta API FC26 para: {player_slug}")
     
     try:
-        # Simulación de navegador para evitar bloqueos de Cloudflare
-        response = requests.get(url, impersonate="chrome110", timeout=15)
-        
+        response = requests.post(url, headers=headers, data=data, impersonate="chrome120", timeout=15)
         if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Buscamos la clase específica que contiene el precio en Futwiz (.price-num)
-            precio_element = soup.select_one('.price-num')
-            
-            if precio_element:
-                precio = precio_element.text.strip()
-                logging.info(f"Precio recuperado: {precio}")
-                return precio
-            else:
-                return "No listado / Extinto"
-        elif response.status_code == 404:
-            return "El jugador no existe en esta versión o la URL es incorrecta."
+            import re, json
+            match = re.search(r'\[\{.*?"builder_name".*?\}\]', response.text)
+            if match:
+                jugadores_batch = json.loads(match.group(0))
+                for g in jugadores_batch:
+                    # Validamos el ID para asegurar exactitud
+                    id_jugador = g.get('line_id') or g.get('pid')
+                    if str(id_jugador) == str(player_id):
+                        if g.get('prices') and g['prices'].get('console') and g['prices']['console'].get('bin'):
+                            precio = str(g['prices']['console']['bin'])
+                            logging.info(f"Precio recuperado API: {precio}")
+                            return precio
+            return "No listado / Extinto"
         else:
             return f"Error HTTP {response.status_code}"
             
     except Exception as e:
-        logging.error(f"Error de red en get_player_price_futwiz: {e}")
+        logging.error(f"Error de red en get_player_price_futwiz API: {e}")
         return f"Error de conexión: {e}"
 
 # --- 3. LÓGICA DE PRECIOS DEL BOT ---
@@ -85,19 +90,10 @@ def limpiar_precio(precio_texto):
         return 0
 
 def obtener_precio_actual(url_jugador):
-    """Scraping rápido para los comandos integrados del bot"""
-    try:
-        logging.info(f"Scrapeando URL: {url_jugador}")
-        response = requests.get(url_jugador, impersonate="chrome110", timeout=15)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            precio_element = soup.select_one('.price-num')
-            if precio_element:
-                return limpiar_precio(precio_element.text.strip())
-        return 0
-    except Exception as e:
-        logging.error(f"Error en obtener_precio_actual: {e}")
-        return 0
+    """(Obsoleta para FC26) Ya no extrae de URL por SPA."""
+    # Para ser retrocompatible si alguien pega un URL de la web, podríamos parsear la URL
+    # y enviarla al API, pero como fallback preventivo lo mandamos al anterior o 0
+    return 0
 
 # --- 4. TAREAS AUTOMÁTICAS: (TEXTO VIP) ---
 

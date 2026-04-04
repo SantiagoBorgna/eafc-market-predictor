@@ -1,161 +1,122 @@
 import sys
 import os
 import time
+import json
 import re
-from bs4 import BeautifulSoup
 from curl_cffi import requests
-import random
-
-NAVEGADORES = ["chrome110", "chrome116", "chrome120", "edge99", "edge101", "safari15_5", "safari17_0"]
 
 # Add root folder to sys_path to allow absolute imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from database.crud import insertar_jugador, obtener_jugador_por_id, obtener_jugador_por_futwiz_id
+from database.crud import insertar_jugador, obtener_jugador_por_futwiz_id, registrar_metadato
 
-def parsear_pagina_futwiz(url):
+def poblar_base_datos(paginas_a_escanear=400, limit_por_pagina=50):
     """
-    Toma una URL de un listado de jugadores en Futwiz, extrae una lista de diccionarios
-    con los datos básicos: id, slug, nombre, rating, posicion.
+    Scrapea el listado completo usando la API de Next.js de FC26.
     """
-    jugadores_extraidos = []
-    
-    print(f"📡 Scrapeando: {url}")
-    try:
-        response = requests.get(url, impersonate=random.choice(NAVEGADORES), timeout=15)
-        if response.status_code != 200:
-            print(f"Error {response.status_code} al acceder a {url}")
-            return []
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Cada jugador en la vista de grilla de futwiz (cards o rows)
-        cards = soup.select('.player-search-result-row-container')
-        
-        for card in cards:
-            link_elem = card.select_one('a')
-            if not link_elem or 'href' not in link_elem.attrs:
-                continue
-                
-            href = link_elem['href']
-            partes = href.split('/')
-            if len(partes) < 4:
-                continue
-                
-            futwiz_id = int(partes[-1])
-            slug = partes[-2]
-            
-            # Verificar si existe en BD antes de hacer requests individuales (ahorra MUCHISIMO tiempo y evita ban)
-            if obtener_jugador_por_futwiz_id(futwiz_id):
-                print(f"  ⏭️ Saltando (ya existe en BD): {slug}")
-                continue
-            
-            # Navegar a la página individual para obtener todos los datos
-            url_jugador = f"https://www.futwiz.com{href}"
-            print(f"  ↳ Obteniendo detalles de: {slug}")
-            
-            try:
-                # Pequeña pausa para no bombardear al servidor con request individuales tan rápido
-                time.sleep(1)
-                res_indiv = requests.get(url_jugador, impersonate=random.choice(NAVEGADORES), timeout=15)
-                soup_indiv = BeautifulSoup(res_indiv.text, 'html.parser')
-                
-                # Nombre
-                nombre_elem = soup_indiv.select_one('.player-profile-name')
-                nombre = nombre_elem.text.strip() if nombre_elem else slug.replace('-', ' ').title()
-                
-                # Rating
-                rating_elem = soup_indiv.select_one('.player-profile-stats-rating')
-                rating = int(rating_elem.text.strip()) if rating_elem and rating_elem.text.strip().isdigit() else 0
-                
-                # Posicion
-                pos_elem = soup_indiv.select_one('.player-profile-stats-pos')
-                posicion = pos_elem.text.strip() if pos_elem else ""
-
-                def extract_info(label):
-                    elem = soup_indiv.find(string=re.compile(label))
-                    if elem and elem.parent and elem.parent.parent:
-                        # Estructura típica: <div><div class="label">Club</div><div>FC Barcelona</div></div>
-                        lines = [text.strip() for text in elem.parent.parent.stripped_strings if text.strip() != label]
-                        return lines[0] if lines else ""
-                    return ""
-
-                equipo = extract_info('Club')
-                liga = extract_info('League')
-                nacionalidad = extract_info('Nation')
-                
-                # Version: Intentamos deducirlo del título de la página o de labels dorados
-                version_carta = "Gold" # Default para seed
-                
-                jugadores_extraidos.append({
-                    'futwiz_id': futwiz_id,
-                    'slug': slug,
-                    'nombre': nombre,
-                    'rating': rating,
-                    'posicion': posicion,
-                    'equipo': equipo,
-                    'liga': liga,
-                    'nacionalidad': nacionalidad,
-                    'version_carta': version_carta
-                })
-            except Exception as e:
-                print(f"    Error scrapeando detalles: {e}")
-                
-    except Exception as e:
-        print(f"Excepción en el scraping masivo: {e}")
-        
-    return jugadores_extraidos
-
-def poblar_base_datos(paginas_a_escanear=5):
-    """
-    Scrapea el listado de cartas ORO (non-special cards) para poblar la BD inicial.
-    Futwiz params: 'rarity=rare,non-rare' y 'quality=gold' filtra a solo oros base.
-    """
-    # Simplificamos la URL para evitar el Error 500 del servidor
-    # 'page' empieza en 0
-    url_base = "https://www.futwiz.com/en/fc25/players?page={}&quality=gold&rarity=goldrare,goldnonrare"
+    url = "https://www.futwiz.com/fc26/players"
+    headers = {
+        'accept': 'text/x-component',
+        'content-type': 'text/plain;charset=UTF-8',
+        'next-action': '7f14f6fdfcf68078a40fee222c3416dc2d522611c3',
+    }
     
     total_insertados = 0
     total_procesados = 0
 
-    for i in range(paginas_a_escanear):
-        url = url_base.format(i)
-        jugadores = parsear_pagina_futwiz(url)
+    for i in range(1, paginas_a_escanear + 1):
+        # Escaneamos sin filtros extraños para sacar todos
+        data = f'[26,{{"mode":"search","filters":{{}},"search":"$undefined","pagination":{{"page":{i},"limit":{limit_por_pagina}}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
         
-        if not jugadores:
-            print("⚠️ No se encontraron jugadores o fuimos bloqueados. Deteniendo.")
+        print(f"📡 API FC26 -> Escaneando página {i} ({limit_por_pagina} por pág)")
+        try:
+            res = requests.post(url, headers=headers, data=data, impersonate="chrome120", timeout=20)
+            if res.status_code != 200:
+                print(f"Error {res.status_code} al acceder a la API de FC26. Reintentando...")
+                time.sleep(5)
+                continue
+                
+            match = re.search(r'\[\{.*?"builder_name".*?\}\]', res.text)
+            if not match:
+                print("⚠️ No se encontró la lista de jugadores. Puede que hayamos llegado al final.")
+                break
+                
+            jugadores_batch = json.loads(match.group(0))
+            if not jugadores_batch:
+                print("⚠️ Lista JSON vacía. Fin de base de datos.")
+                break
+                
+            for g in jugadores_batch:
+                total_procesados += 1
+                futwiz_id = g.get('line_id') or g.get('pid')
+                if not futwiz_id:
+                    continue
+                    
+                nombre = g.get('common_name') or g.get('builder_name') or "Desconocido"
+                
+                builder = str(g.get('builder_name', '')).lower()
+                slug = builder.replace(' ', '-') if builder else 'player'
+                rating = g.get('rating', 0)
+                
+                # Posiciones
+                posicion = str(g.get('position', ''))
+                alt_pos = [g.get('position2'), g.get('position3'), g.get('position4')]
+                alt_pos = [p for p in alt_pos if p and str(p).strip() != '']
+                posiciones_alternativas = ", ".join(alt_pos)
+                
+                equipo_id = str(g.get('club', ''))
+                liga_id = str(g.get('league', ''))
+                nacion_id = str(g.get('nation', ''))
+                
+                # Tipo de Carta
+                # Futwiz suele tener rare y card_id
+                card_num = g.get('card_id')
+                rare_num = g.get('rare')
+                if card_num:
+                    tipo_id = f"c_{card_num}"
+                    version_carta = f"Promo {card_num}"
+                else:
+                    tipo_id = f"r_{rare_num}"
+                    version_carta = "Gold Rare" if rare_num == 5 else ("Gold NR" if rare_num == 1 else f"Rare {rare_num}")
+                
+                # Registramos meta relacional
+                registrar_metadato('clubes', equipo_id, "Club Desconocido")
+                registrar_metadato('ligas', liga_id, "Liga Desconocida")
+                registrar_metadato('nacionalidades', nacion_id, "Nación Desconocida")
+                registrar_metadato('tipos_carta', tipo_id, version_carta)
+                
+                precio_bin = 0
+                if g.get('prices') and g['prices'].get('console') and g['prices']['console'].get('bin'):
+                    precio_bin = g['prices']['console']['bin']
+
+                if obtener_jugador_por_futwiz_id(futwiz_id):
+                    continue
+                    
+                id_db = insertar_jugador(
+                    futwiz_id=futwiz_id,
+                    slug=slug,
+                    nombre=nombre,
+                    rating=rating,
+                    version_carta=tipo_id, # Guardamos el ID del tipo de carta
+                    liga=liga_id,
+                    equipo=equipo_id,
+                    nacionalidad=nacion_id,
+                    posicion=posicion,
+                    posiciones_alternativas=posiciones_alternativas,
+                    precio_actual=precio_bin
+                )
+                if id_db:
+                    total_insertados += 1
+                    
+            print(f"✅ Pagina {i} procesada. Insertados hasta ahora: {total_insertados}")
+            time.sleep(1.5) # Respetando límite para 400 páginas
+            
+        except Exception as e:
+            print(f"Excepción fatal en el scrapping: {e}")
             break
             
-        for g in jugadores:
-            total_procesados += 1
-            # Para evitar duplicados en pruebas futuras, lo ideal sería chequear si ya existe antes de insertar, 
-            # pero por ahora, como el ID nuestro de la BD y el futwiz_id no interactuan conflictivamente salvo 
-            # que agreguemos constraint de Unique al futwiz_id, haremos inserción directa.
-            
-            # En un entorno real se haría: 
-            # "SELECT * FROM jugadores where futwiz_id = ?" si no existe, insert. (Lo agregaremos luego).
-            
-            # Inserción asumiendo que está semi-vacia:
-            # Ponemos "Gold" como versión por defecto ya que usamos URLs filtradas.
-            id_db = insertar_jugador(
-                futwiz_id=g['futwiz_id'],
-                slug=g['slug'],
-                nombre=g['nombre'],
-                rating=g['rating'],
-                version_carta=g.get('version_carta', 'Gold'),
-                liga=g.get('liga', ''),
-                equipo=g.get('equipo', ''),
-                nacionalidad=g.get('nacionalidad', ''),
-                posicion=g['posicion']
-            )
-            if id_db:
-                total_insertados += 1
-                
-        # Anti-ban sleep (Fundamental!)
-        print(f"✅ Pagina {i} escaneada. Durmiendo 3 segundos anti-ban...")
-        time.sleep(3)
-        
-    print(f"🎉 Población finalizada. {total_procesados} procesados. {total_insertados} insertados en BD.")
+    print(f"🎉 Población MASIVA finalizada. {total_procesados} leídos. {total_insertados} insertados en BD.")
 
 if __name__ == "__main__":
-    print("Iniciando SEED masivo. Limitado a 1 página para test inicial rápido.")
-    poblar_base_datos(paginas_a_escanear=1)
+    print("Iniciando SEED MASIVO para FC26 (100% de la BD).")
+    # En producción lo pondremos a 400, si detecta final se corta solo
+    poblar_base_datos(paginas_a_escanear=400, limit_por_pagina=50)

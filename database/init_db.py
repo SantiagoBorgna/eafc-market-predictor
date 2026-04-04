@@ -2,14 +2,15 @@ import sqlite3
 import os
 
 def init_db():
-    # Asegurarnos de que estamos en el directorio correcto o crear un path absoluto
-    # Esto asume que el script se corre desde la raíz del proyecto o desde la carpeta database
     db_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(db_dir, 'database.sqlite')
     
     print(f"Conectando a la base de datos en: {db_path}")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    print("Limpiando DB para FC26: dropeando tabla jugadores vieja...")
+    cursor.execute('DROP TABLE IF EXISTS jugadores')
 
     # Tabla: JUGADORES
     print("Creando tabla 'jugadores'...")
@@ -31,6 +32,17 @@ def init_db():
         ultima_actualizacion DATETIME
     )
     ''')
+
+    # Tablas Relacionales Temporales
+    table_names = ['clubes', 'ligas', 'nacionalidades', 'tipos_carta']
+    for t in table_names:
+        print(f"Creando tabla '{t}'...")
+        cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS {t} (
+            id TEXT PRIMARY KEY,
+            nombre TEXT
+        )
+        ''')
 
     # Tabla: HISTORIAL_PRECIOS
     print("Creando tabla 'historial_precios'...")
@@ -73,7 +85,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("Base de datos inicializada correctamente.")
+    print("Base de datos inicializada correctamente con esquema relacional.")
 
 if __name__ == '__main__':
     init_db()

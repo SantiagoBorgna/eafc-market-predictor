@@ -2,19 +2,32 @@ import sqlite3
 import os
 
 def _get_connection():
-    # Helper para conectarse apuntando siempre al archivo correcto
     db_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(db_dir, 'database.sqlite')
-    # Aumentamos el timeout a 20 segundos para evitar errores "database is locked" en un entorno asíncrono
     conn = sqlite3.connect(db_path, timeout=20.0)
-    # Activamos modo WAL (Write-Ahead Logging) para permitir concurrencia de lectura/escritura simultánea sin bloqueos
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
+def registrar_metadato(tabla, meta_id, nombre=""):
+    """
+    Registra un ID numérico en la tabla relacional especificada (clubes, ligas, nacionalidades, tipos_carta)
+    si es que aún no existe.
+    """
+    if not meta_id:
+        return
+        
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        # Usamos string format para la tabla porque sqlite no permite ? en nombre de tabla
+        cursor.execute(f"INSERT OR IGNORE INTO {tabla} (id, nombre) VALUES (?, ?)", (meta_id, nombre))
+        conn.commit()
+    except sqlite3.Error as e:
+        pass
+    finally:
+        conn.close()
+
 def insertar_jugador(futwiz_id, slug, nombre, rating, version_carta, liga, equipo, nacionalidad, posicion, posiciones_alternativas="", precio_actual=0, precio_historico_minimo=0):
-    """
-    Inserta un nuevo jugador en la base de datos y retorna su ID interno.
-    """
     conn = _get_connection()
     cursor = conn.cursor()
     

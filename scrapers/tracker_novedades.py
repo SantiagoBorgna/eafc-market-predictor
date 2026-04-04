@@ -1,120 +1,97 @@
 import sys
 import os
 import time
+import json
+import re
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.crud import insertar_jugador, _get_connection, obtener_jugador_por_futwiz_id
-from scrapers.seed_db import parsear_pagina_futwiz
 from functools import lru_cache
+from curl_cffi import requests
 
-@lru_cache(maxsize=50)
+@lru_cache(maxsize=200)
 def jugador_ya_existe_en_bd(futwiz_id):
     """Verifica en SQLite si la carta existe y guarda el resultado en caché."""
     return obtener_jugador_por_futwiz_id(futwiz_id) is not None
 
-def parsear_novedades_futwiz(url):
+def parsear_novedades_futwiz():
     """
-    Parseador especial para la página 'latest' ya que tiene una estructura CSS distinta 
-    a la página de búsqueda general.
+    Busca los top 150 jugadores más recientes/altos usando la API de Next.js.
+    Dado que las nuevas cartas promo suelen entrar en el top rating, esto es altamente eficiente.
     """
+    url = "https://www.futwiz.com/fc26/players"
+    headers = {
+        'accept': 'text/x-component',
+        'content-type': 'text/plain;charset=UTF-8',
+        'next-action': '7f14f6fdfcf68078a40fee222c3416dc2d522611c3',
+    }
+    
     jugadores_extraidos = []
+    
     try:
-        from curl_cffi import requests
-        from bs4 import BeautifulSoup
-        import re
-        
-        response = requests.get(url, impersonate="chrome110", timeout=15)
-        if response.status_code != 200:
-            return []
+        # Explorar 3 páginas (150 cartas)
+        for page in range(1, 4):
+            data = f'[26,{{"mode":"search","filters":{{}},"search":"$undefined","pagination":{{"page":{page},"limit":50}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
             
-        soup = BeautifulSoup(response.text, 'html.parser')
-        links = soup.find_all('a', href=re.compile(r'^/fc25/player/'))
-        
-        # Usar un set para evitar duplicados en la misma página (Futwiz pone la carta 2 veces a veces)
-        procesados = set()
-        
-        for a in links:
-            href = a.get('href')
-            if href in procesados: continue
-            procesados.add(href)
-            
-            partes = href.split('/')
-            if len(partes) < 4: continue
-                
-            futwiz_id = int(partes[-1])
-            slug = partes[-2]
-            
-            # Verificar si existe en BD preguntando a la caché en memoria 
-            if jugador_ya_existe_en_bd(futwiz_id):
-                print(f"  ⏭️ Saltando novedad (ya existe en BD): {slug}")
+            res = requests.post(url, headers=headers, data=data, impersonate="chrome120", timeout=15)
+            if res.status_code != 200:
                 continue
-            
-            # Navegar a la página individual para obtener todos los datos
-            url_jugador = f"https://www.futwiz.com{href}"
-            print(f"  ↳ Novedad, obteniendo detalles de: {slug}")
-            
-            try:
-                time.sleep(1) # pausa anti-ban
-                res_indiv = requests.get(url_jugador, impersonate="chrome110", timeout=15)
-                soup_indiv = BeautifulSoup(res_indiv.text, 'html.parser')
                 
-                # Nombre
-                nombre_elem = soup_indiv.select_one('.player-profile-name')
-                nombre = nombre_elem.text.strip() if nombre_elem else slug.replace('-', ' ').title()
+            match = re.search(r'\[\{.*?"builder_name".*?\}\]', res.text)
+            if not match:
+                continue
                 
-                # Rating
-                rating_elem = soup_indiv.select_one('.player-profile-stats-rating')
-                rating = int(rating_elem.text.strip()) if rating_elem and rating_elem.text.strip().isdigit() else 0
+            jugadores_batch = json.loads(match.group(0))
+            for g in jugadores_batch:
+                id_jugador = g.get('line_id') or g.get('pid')
+                if not id_jugador: continue
                 
-                # Posicion
-                pos_elem = soup_indiv.select_one('.player-profile-stats-pos')
-                posicion = pos_elem.text.strip() if pos_elem else ""
-
-                def extract_info(label):
-                    elem = soup_indiv.find(string=re.compile(label))
-                    if elem and elem.parent and elem.parent.parent:
-                        lines = [text.strip() for text in elem.parent.parent.stripped_strings if text.strip() != label]
-                        return lines[0] if lines else ""
-                    return ""
-
-                equipo = extract_info('Club')
-                liga = extract_info('League')
-                nacionalidad = extract_info('Nation')
+                # Check mem caché
+                if jugador_ya_existe_en_bd(id_jugador):
+                    continue
+                    
+                nombre = g.get('common_name') or g.get('builder_name') or "Desconocido"
+                builder = str(g.get('builder_name', '')).lower()
+                slug = builder.replace(' ', '-') if builder else 'player'
+                rating = g.get('rating', 0)
+                posicion = str(g.get('position', ''))
                 
-                # Intentamos deducir la version_carta
-                version_elem = soup_indiv.find(string=re.compile('Skill Moves'))
-                version_carta = "Special" # Default si no encontramos el label
-                # Un truco sucio: A veces la version esta cerca del nombre o como background
+                equipo_id = str(g.get('club', ''))
+                liga_id = str(g.get('league', ''))
+                nacion_id = str(g.get('nation', ''))
+                
+                version_carta = "Promo/Special"
                 
                 jugadores_extraidos.append({
-                    'futwiz_id': futwiz_id,
+                    'futwiz_id': id_jugador,
                     'slug': slug,
                     'nombre': nombre,
                     'rating': rating,
                     'posicion': posicion,
-                    'equipo': equipo,
-                    'liga': liga,
-                    'nacionalidad': nacionalidad,
+                    'equipo': equipo_id,
+                    'liga': liga_id,
+                    'nacionalidad': nacion_id,
                     'version_carta': version_carta
                 })
-            except Exception as e:
-                print(f"    Error scrapeando detalles de la novedad: {e}")
-                
+            
+            time.sleep(1) # antiban
     except Exception as e:
-        print(f"Error parseando novedades: {e}")
+        print(f"Error extrayendo novedades API: {e}")
         
     return jugadores_extraidos
 
 def chequear_cartas_nuevas():
     """
-    Revisa la sección 'Latest' de Futwiz y agrega a la BD los jugadores que aún no existen.
-    Devuelve un reporte (string) con las novedades encontradas, listo para enviarse por Telegram.
+    Revisa la API de FC26 y agrega a la BD los jugadores que aún no existen.
+    Devuelve un reporte (string) con las novedades encontradas.
     """
-    url_novedades = "https://www.futwiz.com/en/fc25/players/latest"
-    print("🔍 Revisando la sección de cartas más recientes de EA Sports...")
+    print("🔍 Revisando API masiva en busca de cartas sin registrar...")
     
-    jugadores_recientes = parsear_novedades_futwiz(url_novedades)
+    jugadores_recientes = parsear_novedades_futwiz()
     
+    if not jugadores_recientes:
+        return None
+        
     conn = _get_connection()
     cursor = conn.cursor()
     
@@ -122,15 +99,13 @@ def chequear_cartas_nuevas():
     
     for j in jugadores_recientes:
         futwiz_id = j['futwiz_id']
-        
         try:
-            # Los jugadores_recientes ya vienen filtrados (no existen en BD) gracias al check en parsear_novedades_futwiz
             id_insertado = insertar_jugador(
                 futwiz_id=j['futwiz_id'],
                 slug=j['slug'],
                 nombre=j['nombre'],
                 rating=j['rating'],
-                version_carta=j.get('version_carta', 'Scraped/Unknown'),
+                version_carta=j.get('version_carta', 'Special'),
                 liga=j.get('liga', ''),
                 equipo=j.get('equipo', ''),
                 nacionalidad=j.get('nacionalidad', ''),
@@ -146,13 +121,13 @@ def chequear_cartas_nuevas():
     conn.close()
     
     if nuevos_agregados:
-        nombres_juntos = ", ".join(nuevos_agregados[:10]) # Limite para no ser spam
+        nombres_juntos = ", ".join(nuevos_agregados[:10])
         if len(nuevos_agregados) > 10:
             nombres_juntos += f" y {len(nuevos_agregados)-10} más..."
             
-        print(f"📦 [Silent DB Update] Se agregaron {len(nuevos_agregados)} nuevas cartas: {nombres_juntos}")
+        print(f"📦 Se agregaron {len(nuevos_agregados)} nuevas cartas: {nombres_juntos}")
         
-    return None # Volvemos el bot 100% silencioso para no enviar alertas falsas de cartas ya lanzadas
+    return None
 
 if __name__ == '__main__':
     print(chequear_cartas_nuevas())
