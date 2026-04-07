@@ -662,10 +662,7 @@ async def buscar_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = context.user_data.get('buscar_nombre', '')
     
     from database.crud import buscar_jugador_por_nombre
-    resultados = buscar_jugador_por_nombre(nombre)
-    
-    if version.lower() != 'cualquiera':
-        resultados = [r for r in resultados if version.lower() in r['version_carta'].lower()]
+    resultados = buscar_jugador_por_nombre(nombre, version)
         
     if not resultados:
         msg = f"❌ No encontré ninguna carta de {nombre} (Versión: {version}). Tocá /buscar para intentar de nuevo."

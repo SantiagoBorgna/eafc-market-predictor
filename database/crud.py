@@ -318,21 +318,33 @@ def contar_jugadores():
     finally:
         conn.close()
 
-def buscar_jugador_por_nombre(nombre_parcial):
+def buscar_jugador_por_nombre(nombre_parcial, version=None):
     """
     Busca jugadores activos por coincidencias parciales en su nombre.
+    Permite filtrar por versión (ej. 'Especial' vs 'Oro') y ordena los resultados
+    para priorizar las mejores cartas en caso de encontrar múltiples versiones.
     """
     conn = _get_connection()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     try:
-        cursor.execute('''
+        query = '''
             SELECT j.*, 
                    COALESCE(tc.nombre, j.version_carta) as version_carta_nombre
             FROM jugadores j
             LEFT JOIN tipos_carta tc ON j.version_carta = tc.id
             WHERE j.nombre LIKE ?
-        ''', (f'%{nombre_parcial}%',))
+        '''
+        parametros = [f'%{nombre_parcial}%']
+        
+        if version and version.lower() != 'cualquiera':
+            query += " AND version_carta_nombre LIKE ?"
+            parametros.append(f'%{version}%')
+            
+        # Ordenamos por rating descendente para priorizar cartas mejores si se llaman igual
+        query += " ORDER BY j.rating DESC, j.precio_actual DESC"
+        
+        cursor.execute(query, tuple(parametros))
         
         resultados = []
         for row in cursor.fetchall():
