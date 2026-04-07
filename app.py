@@ -248,6 +248,38 @@ async def tarea_limpieza_vips(context: ContextTypes.DEFAULT_TYPE):
     else:
         logging.info("No se encontraron suscripciones VIP vencidas hoy.")
 
+async def tarea_healthcheck(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Se ejecuta internamente cada cierto tiempo para comprobar que la base de datos
+    está íntegra y que los scrapers publicaron precios en las últimas 2 horas.
+    Notifica al ADMIN en caso de caída.
+    """
+    from healthcheck import check_database_responsive, check_scrapers_recent_activity
+    import os
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database', 'database.sqlite')
+    
+    if not os.path.exists(db_path):
+        logging.error("🏥 Healthcheck bot loop: Base de datos no encontrada.")
+        return
+        
+    db_ok = check_database_responsive(db_path)
+    scraping_ok = check_scrapers_recent_activity(db_path)
+    
+    if db_ok and scraping_ok:
+        logging.info("🏥 Healthcheck bot loop: Todo funcionando correctamente.")
+    else:
+        logging.error("🏥 Healthcheck bot loop: ALERTA ROJA - Base de datos o scrapers interrumpidos.")
+        ADMIN_ID = os.getenv("ADMIN_ID")
+        if ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=int(ADMIN_ID), 
+                    text="🚨 **ALERTA CRÍTICA (CardsBot)** 🚨\n\nEl sistema reportó fallos en el Healthcheck interno (DB caída o Scrapers congelados). Revisar servidor de inmediato.", 
+                    parse_mode='Markdown'
+                )
+            except Exception:
+                pass
+
 # --- 5. COMANDOS DEL BOT (TELEGRAM HANDLERS) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -736,6 +768,8 @@ if __name__ == "__main__":
         
         # Scraper anti-bloqueo de Telegram para Leaks de Reddit, cada 5 minutos
         app.job_queue.run_repeating(tarea_reddit, interval=300, first=30)
+        # Tarea de Healthcheck cada 2 horas (7200 segundos) para validar subsistemas
+        app.job_queue.run_repeating(tarea_healthcheck, interval=7200, first=120)
         
         # Tarea diaria: Ejecutar limpieza de VIPs a las 00:00 (hora local de Argentina, que es UTC-3)
         # 00:00 local ARG -> 03:00 UTC
