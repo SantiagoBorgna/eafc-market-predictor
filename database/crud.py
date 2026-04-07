@@ -417,6 +417,24 @@ def limpiar_vips_vencidos():
     except sqlite3.Error as e:
         logger.error(f"Error al limpiar VIPs vencidos: {e}")
         return []
+        conn.close()
+
+def limpiar_historial_antiguo(dias_antiguedad=30):
+    """
+    Elimina registros en historial_precios que sean más antiguos a X días 
+    para mantener el archivo SQLite optimizado y evitar que el tamaño explote.
+    """
+    conn = _get_connection()
+    cursor = conn.cursor()
+    try:
+        # SQLite datetime modifier: '-30 days'
+        cursor.execute(f"DELETE FROM historial_precios WHERE fecha_registro < datetime('now', '-{dias_antiguedad} days')")
+        eliminados = cursor.rowcount
+        conn.commit()
+        return eliminados
+    except sqlite3.Error as e:
+        logger.error(f"Error al limpiar historial antiguo de DB: {e}")
+        return 0
     finally:
         conn.close()
 

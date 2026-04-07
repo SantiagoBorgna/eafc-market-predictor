@@ -224,6 +224,12 @@ async def tarea_limpieza_vips(context: ContextTypes.DEFAULT_TYPE):
     logging.info("Iniciando limpieza diaria de VIPs vencidos...")
     usuarios_vencidos = limpiar_vips_vencidos()
     
+    # KAN Mantenimiento: Purga del historial de DB
+    from database.crud import limpiar_historial_antiguo
+    borrados_hist = limpiar_historial_antiguo(30)
+    if borrados_hist > 0:
+        logging.info(f"🧹 Mantenimiento DB Automático: Se eliminaron {borrados_hist} precios de hace +30 días.")
+    
     if usuarios_vencidos:
         logging.info(f"Se encontraron {len(usuarios_vencidos)} suscripciones vencidas. Notificando...")
         mensaje = "Tu suscripción VIP ha finalizado. Usa /vip para renovar."
