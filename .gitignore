@@ -4,3 +4,5 @@ bot.log
 __pycache__/
 *.pyc
 *.html
+
+app.log
