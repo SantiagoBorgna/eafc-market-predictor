@@ -4,6 +4,7 @@ import time
 import json
 import re
 from curl_cffi import requests
+from utils.http import fetch_with_retry
 
 # Add root folder to sys_path to allow absolute imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,10 +30,9 @@ def poblar_base_datos(paginas_a_escanear=400, limit_por_pagina=50):
         
         print(f"📡 API FC26 -> Escaneando página {i} ({limit_por_pagina} por pág)")
         try:
-            res = requests.post(url, headers=headers, data=data, impersonate="chrome120", timeout=20)
+            res = fetch_with_retry('post', url, headers=headers, data=data, impersonate="chrome120", timeout=20)
             if res.status_code != 200:
-                print(f"Error {res.status_code} al acceder a la API de FC26. Reintentando...")
-                time.sleep(5)
+                print(f"Error {res.status_code} al acceder a la API de FC26. Saltando página...")
                 continue
                 
             match = re.search(r'\[\{.*?"builder_name".*?\}\]', res.text)

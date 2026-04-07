@@ -323,8 +323,22 @@ def buscar_jugador_por_nombre(nombre_parcial):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM jugadores WHERE nombre LIKE ?", (f'%{nombre_parcial}%',))
-        return [dict(row) for row in cursor.fetchall()]
+        cursor.execute('''
+            SELECT j.*, 
+                   COALESCE(tc.nombre, j.version_carta) as version_carta_nombre
+            FROM jugadores j
+            LEFT JOIN tipos_carta tc ON j.version_carta = tc.id
+            WHERE j.nombre LIKE ?
+        ''', (f'%{nombre_parcial}%',))
+        
+        resultados = []
+        for row in cursor.fetchall():
+            d = dict(row)
+            d['version_carta'] = d['version_carta_nombre']
+            del d['version_carta_nombre']
+            resultados.append(d)
+            
+        return resultados
     except sqlite3.Error as e:
         print(f"Error buscando jugador por nombre: {e}")
         return []

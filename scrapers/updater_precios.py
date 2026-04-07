@@ -4,6 +4,7 @@ import time
 import json
 import re
 from curl_cffi import requests
+from utils.http import fetch_with_retry
 
 # Agregar el directorio raíz al path para importar el módulo de base de datos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,7 +26,7 @@ def extraer_precio_futwiz(slug, futwiz_id):
     data = f'[26,{{"mode":"search","filters":{{}},"search":"{slug}","pagination":{{"page":1,"limit":5}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
     
     try:
-        res = requests.post(url, headers=headers, data=data, impersonate="chrome120", timeout=15)
+        res = fetch_with_retry('post', url, headers=headers, data=data, impersonate="chrome120", timeout=15)
         if res.status_code != 200:
             return 0
             

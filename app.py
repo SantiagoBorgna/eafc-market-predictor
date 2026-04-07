@@ -4,6 +4,7 @@ import feedparser
 import logging
 from dotenv import load_dotenv
 from curl_cffi import requests
+from utils.http import fetch_with_retry
 from bs4 import BeautifulSoup
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, ChatJoinRequestHandler, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
@@ -53,7 +54,7 @@ def get_player_price_futwiz(player_id, player_slug, fc_version=26):
     logging.info(f"Iniciando consulta API FC26 para: {player_slug}")
     
     try:
-        response = requests.post(url, headers=headers, data=data, impersonate="chrome120", timeout=15)
+        response = fetch_with_retry('post', url, headers=headers, data=data, impersonate="chrome120", timeout=15)
         if response.status_code == 200:
             import re, json
             match = re.search(r'\[\{.*?"builder_name".*?\}\]', response.text)

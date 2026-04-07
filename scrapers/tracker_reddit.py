@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from curl_cffi import requests
+from utils.http import fetch_with_retry
 from database.crud import es_post_nuevo, registrar_post
 
 def chequear_filtraciones_reddit():
@@ -25,7 +26,7 @@ def chequear_filtraciones_reddit():
     for url in fuentes_reddit:
         try:
             # Usamos curl_cffi para bypassear posibles bloqueos de Reddit a bots ordinarios
-            response = requests.get(url, headers=headers, impersonate="chrome110", timeout=15)
+            response = fetch_with_retry('get', url, headers=headers, impersonate="chrome110", timeout=15)
             
             if response.status_code == 200:
                 datos = response.json()
