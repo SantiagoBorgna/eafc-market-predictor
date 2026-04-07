@@ -24,7 +24,7 @@ CONFIG = load_config()
 
 # Agregamos la raíz del proyecto al sys.path para poder importar modules desde otras carpetas
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from database.crud import buscar_jugador_por_requisito
+from database.crud import buscar_jugador_por_requisito, obtener_precio_hace_n_horas
 
 # Diccionarios de palabras clave simples para el parser
 NACIONALIDADES_CLAVE = ["Argentina", "Brazil", "France", "Spain", "Germany", "England", "Portugal", "Netherlands"]
@@ -108,6 +108,32 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
         mensaje += "No se detectaron oportunidades claras de inversión (los jugadores actuales que cumplen estos requisitos ya tienen precios inflados o no los tenemos registrados)."
         
     return mensaje, requisitos
+
+def detectar_panic_selling(jugador_id, precio_actual, nombre_jugador, rating, tiempo_horas=1):
+    """
+    Regla Inversa: Analiza si el jugador sufrió una caída violenta en su precio en la última hora.
+    Si cae por encima del porcentaje configurado, podría ser Panic Selling.
+    """
+    umbral_caida = CONFIG.get("motor_reglas", {}).get("umbral_panic_selling_caida", 0.15)
+    
+    precio_pasado = obtener_precio_hace_n_horas(jugador_id, horas=tiempo_horas)
+    if precio_pasado == 0 or precio_actual == 0:
+        return None
+        
+    caida = (precio_pasado - precio_actual) / precio_pasado
+    
+    if caida >= umbral_caida:
+        mensaje = f"📉 **PANIC SELLING DETECTADO**\n\n"
+        mensaje += f"Jugador: *{nombre_jugador}* ({rating})\n"
+        mensaje += f"Precio Máx ({tiempo_horas}h atrás): {precio_pasado} 🪙\n"
+        mensaje += f"Precio Actual: {precio_actual} 🪙\n"
+        mensaje += f"Caída abrupta del: *{caida*100:.1f}%*\n\n"
+        mensaje += "💸 _Posible oportunidad de compra si esperás un rebote inmediato del mercado._"
+        
+        logger.info(f"Oportunidad Panic Selling: {nombre_jugador} (Cayó {caida*100:.1f}%)")
+        return mensaje
+        
+    return None
 
 # --- Bloque de Prueba ---
 if __name__ == '__main__':

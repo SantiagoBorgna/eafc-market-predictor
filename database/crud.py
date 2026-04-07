@@ -409,6 +409,26 @@ def limpiar_vips_vencidos():
     finally:
         conn.close()
 
+def obtener_precio_hace_n_horas(jugador_id, horas=1):
+    """
+    Obtiene el precio máximo registrado de un jugador en las últimas N horas.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT MAX(precio) FROM historial_precios 
+            WHERE jugador_id = ? 
+            AND fecha_registro >= datetime('now', ?)
+        ''', (jugador_id, f'-{horas} hours'))
+        row = cursor.fetchone()
+        return row[0] if row and row[0] else 0
+    except sqlite3.Error as e:
+        logger.error(f"Error obteniendo precio de hace n horas: {e}")
+        return 0
+    finally:
+        conn.close()
+
 def es_post_nuevo(post_id):
     """Verifica si el post de Reddit ya fue notificado previamente"""
     conn = _get_connection()

@@ -1,6 +1,7 @@
 {
     "motor_reglas": {
         "max_sobreprecio_inversion": 1.15,
-        "max_recomendaciones_mostrar": 5
+        "max_recomendaciones_mostrar": 5,
+        "umbral_panic_selling_caida": 0.15
     }
 }

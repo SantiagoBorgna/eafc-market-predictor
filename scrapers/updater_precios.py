@@ -79,6 +79,14 @@ def actualizar_todos_los_precios():
             if actualizar_precio_jugador(jugador_id, nuevo_precio):
                 actualizados_count += 1
                 logger.info(f"   ✅ Precio actualizado: {nuevo_precio}")
+                
+                # Regla inversa: Chequear si originó Panic Selling
+                from bot.motor_reglas import detectar_panic_selling
+                rating_str = jugador.get('rating', '?')
+                alerta = detectar_panic_selling(jugador_id, nuevo_precio, nombre, rating_str)
+                if alerta:
+                    logger.warning(f"⚠️ Alerta propagada: {nombre} en Panic Selling!")
+                    # TODO: Transmitir esta alerta vía Telegram si el bot está corriendo
             else:
                 pass
         else:
