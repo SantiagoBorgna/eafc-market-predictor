@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import os
 import sqlite3
 from curl_cffi import requests
@@ -55,11 +58,11 @@ def chequear_filtraciones_reddit():
                         
             # Reddit podría bloquearnos si no esperamos un poco o por HTTP 429
             elif response.status_code == 429:
-                print("⚠️ Reddit nos limitó (HTTP 429). Esperamos hasta el próximo ciclo.")
+                logger.warning("⚠️ Reddit nos limitó (HTTP 429). Esperamos hasta el próximo ciclo.")
                 break # Frenamos de pegarle a los que faltan y retornamos
                 
         except Exception as e:
-            print(f"❌ Error escaneando un foro de Reddit: {e}")
+            logger.error(f"❌ Error escaneando un foro de Reddit: {e}")
         
     return None
 
@@ -67,8 +70,8 @@ if __name__ == '__main__':
     # Prueba manual aisalda
     filtracion = chequear_filtraciones_reddit()
     if filtracion:
-        print("Nueva filtración Encontrada:")
-        print(filtracion['titulo'])
-        print(filtracion['url'])
+        logger.info("Nueva filtración Encontrada:")
+        logger.info(filtracion['titulo'])
+        logger.info(filtracion['url'])
     else:
-        print("Ninguna filtración nueva.")
+        logger.info("Ninguna filtración nueva.")

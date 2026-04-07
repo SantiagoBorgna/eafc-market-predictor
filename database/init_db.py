@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import sqlite3
 import os
 
@@ -5,15 +8,15 @@ def init_db():
     db_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(db_dir, 'database.sqlite')
     
-    print(f"Conectando a la base de datos en: {db_path}")
+    logger.info(f"Conectando a la base de datos en: {db_path}")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    print("Limpiando DB para FC26: dropeando tabla jugadores vieja...")
+    logger.info("Limpiando DB para FC26: dropeando tabla jugadores vieja...")
     cursor.execute('DROP TABLE IF EXISTS jugadores')
 
     # Tabla: JUGADORES
-    print("Creando tabla 'jugadores'...")
+    logger.info("Creando tabla 'jugadores'...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS jugadores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +39,7 @@ def init_db():
     # Tablas Relacionales Temporales
     table_names = ['clubes', 'ligas', 'nacionalidades', 'tipos_carta']
     for t in table_names:
-        print(f"Creando tabla '{t}'...")
+        logger.info(f"Creando tabla '{t}'...")
         cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS {t} (
             id TEXT PRIMARY KEY,
@@ -45,7 +48,7 @@ def init_db():
         ''')
 
     # Tabla: HISTORIAL_PRECIOS
-    print("Creando tabla 'historial_precios'...")
+    logger.info("Creando tabla 'historial_precios'...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS historial_precios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +60,7 @@ def init_db():
     ''')
 
     # Tabla: SUSCRIPTORES
-    print("Creando tabla 'suscriptores'...")
+    logger.info("Creando tabla 'suscriptores'...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS suscriptores (
         chat_id INTEGER PRIMARY KEY,
@@ -69,7 +72,7 @@ def init_db():
     ''')
     
     # Tabla: REDDIT_LEAKS
-    print("Creando tabla 'reddit_leaks'...")
+    logger.info("Creando tabla 'reddit_leaks'...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS reddit_leaks (
         post_id TEXT PRIMARY KEY,
@@ -79,13 +82,13 @@ def init_db():
     ''')
     
     # Crear índices para acelerar búsquedas
-    print("Creando índices...")
+    logger.info("Creando índices...")
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_slug ON jugadores(slug)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_historial_jugador ON historial_precios(jugador_id)')
 
     conn.commit()
     conn.close()
-    print("Base de datos inicializada correctamente con esquema relacional.")
+    logger.info("Base de datos inicializada correctamente con esquema relacional.")
 
 if __name__ == '__main__':
     init_db()

@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import sys
 import os
 import time
@@ -76,7 +79,7 @@ def parsear_novedades_futwiz():
             
             time.sleep(1) # antiban
     except Exception as e:
-        print(f"Error extrayendo novedades API: {e}")
+        logger.error(f"Error extrayendo novedades API: {e}")
         
     return jugadores_extraidos
 
@@ -85,7 +88,7 @@ def chequear_cartas_nuevas():
     Revisa la API de FC26 y agrega a la BD los jugadores que aún no existen.
     Devuelve un reporte (string) con las novedades encontradas.
     """
-    print("🔍 Revisando API masiva en busca de cartas sin registrar...")
+    logger.info("🔍 Revisando API masiva en busca de cartas sin registrar...")
     
     jugadores_recientes = parsear_novedades_futwiz()
     
@@ -114,9 +117,9 @@ def chequear_cartas_nuevas():
             
             if id_insertado:
                 nuevos_agregados.append(j['nombre'])
-                print(f"✨ ¡NUEVA CARTA REGISTRADA! {j['nombre']} ({j['rating']})")
+                logger.info(f"✨ ¡NUEVA CARTA REGISTRADA! {j['nombre']} ({j['rating']})")
         except Exception as e:
-            print(f"Error procesando id {futwiz_id}: {e}")
+            logger.error(f"Error procesando id {futwiz_id}: {e}")
             
     conn.close()
     
@@ -125,9 +128,9 @@ def chequear_cartas_nuevas():
         if len(nuevos_agregados) > 10:
             nombres_juntos += f" y {len(nuevos_agregados)-10} más..."
             
-        print(f"📦 Se agregaron {len(nuevos_agregados)} nuevas cartas: {nombres_juntos}")
+        logger.info(f"📦 Se agregaron {len(nuevos_agregados)} nuevas cartas: {nombres_juntos}")
         
     return None
 
 if __name__ == '__main__':
-    print(chequear_cartas_nuevas())
+    logger.info(chequear_cartas_nuevas())

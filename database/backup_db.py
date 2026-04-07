@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import os
 import shutil
 from datetime import datetime
@@ -15,7 +18,7 @@ def backup_database():
     # Crear el directorio de backups si no existe
     if not os.path.exists(backup_dir):
         os.makedirs(backup_dir)
-        print(f"Carpeta de backups creada: {backup_dir}")
+        logger.info(f"Carpeta de backups creada: {backup_dir}")
         
     # Formatear la fecha actual (ej. 20261014)
     timestamp = datetime.now().strftime('%Y%m%d')
@@ -26,11 +29,11 @@ def backup_database():
     if os.path.exists(source_db):
         try:
             shutil.copy2(source_db, backup_path)
-            print(f"✅ Backup creado exitosamente en: {backup_path}")
+            logger.info(f"✅ Backup creado exitosamente en: {backup_path}")
         except Exception as e:
-            print(f"❌ Error al realizar el backup: {e}")
+            logger.error(f"❌ Error al realizar el backup: {e}")
     else:
-        print(f"⚠️ Atención: No se encontró la base de datos '{source_db}'.")
+        logger.warning(f"⚠️ Atención: No se encontró la base de datos '{source_db}'.")
 
 if __name__ == "__main__":
     backup_database()

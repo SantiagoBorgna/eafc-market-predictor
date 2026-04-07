@@ -2,6 +2,8 @@ import os
 import asyncio
 import feedparser
 import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 from dotenv import load_dotenv
 from curl_cffi import requests
 from utils.http import fetch_with_retry
@@ -28,11 +30,8 @@ ultima_filtracion_vista = None
 
 # --- 1. CONFIGURACIÓN DE ENTORNO Y LOGS ---
 # Registro de actividad para debugear errores de conexión o de scraping
-logging.basicConfig(
-    filename='bot.log', 
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Registro de actividad redirigido a utils.logger
+# (utils.logger configura automáticamente app.log y stdout)
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -775,5 +774,5 @@ if __name__ == "__main__":
         
         app.run_polling()
     else:
-        print("❌ ERROR: Falta TELEGRAM_TOKEN en el archivo .env")
+        logger.info("❌ ERROR: Falta TELEGRAM_TOKEN en el archivo .env")
         logging.error("No se pudo iniciar el bot: Token ausente.")

@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import sys
 import os
 import time
@@ -28,21 +31,21 @@ def poblar_base_datos(paginas_a_escanear=400, limit_por_pagina=50):
         # Escaneamos sin filtros extraños para sacar todos
         data = f'[26,{{"mode":"search","filters":{{}},"search":"$undefined","pagination":{{"page":{i},"limit":{limit_por_pagina}}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
         
-        print(f"📡 API FC26 -> Escaneando página {i} ({limit_por_pagina} por pág)")
+        logger.info(f"📡 API FC26 -> Escaneando página {i} ({limit_por_pagina} por pág)")
         try:
             res = fetch_with_retry('post', url, headers=headers, data=data, impersonate="chrome120", timeout=20)
             if res.status_code != 200:
-                print(f"Error {res.status_code} al acceder a la API de FC26. Saltando página...")
+                logger.error(f"Error {res.status_code} al acceder a la API de FC26. Saltando página...")
                 continue
                 
             match = re.search(r'\[\{.*?"builder_name".*?\}\]', res.text)
             if not match:
-                print("⚠️ No se encontró la lista de jugadores. Puede que hayamos llegado al final.")
+                logger.warning("⚠️ No se encontró la lista de jugadores. Puede que hayamos llegado al final.")
                 break
                 
             jugadores_batch = json.loads(match.group(0))
             if not jugadores_batch:
-                print("⚠️ Lista JSON vacía. Fin de base de datos.")
+                logger.warning("⚠️ Lista JSON vacía. Fin de base de datos.")
                 break
                 
             for g in jugadores_batch:
@@ -107,16 +110,16 @@ def poblar_base_datos(paginas_a_escanear=400, limit_por_pagina=50):
                 if id_db:
                     total_insertados += 1
                     
-            print(f"✅ Pagina {i} procesada. Insertados hasta ahora: {total_insertados}")
+            logger.info(f"✅ Pagina {i} procesada. Insertados hasta ahora: {total_insertados}")
             time.sleep(1.5) # Respetando límite para 400 páginas
             
         except Exception as e:
-            print(f"Excepción fatal en el scrapping: {e}")
+            logger.error(f"Excepción fatal en el scrapping: {e}")
             break
             
-    print(f"🎉 Población MASIVA finalizada. {total_procesados} leídos. {total_insertados} insertados en BD.")
+    logger.info(f"🎉 Población MASIVA finalizada. {total_procesados} leídos. {total_insertados} insertados en BD.")
 
 if __name__ == "__main__":
-    print("Iniciando SEED MASIVO para FC26 (100% de la BD).")
+    logger.info("Iniciando SEED MASIVO para FC26 (100% de la BD).")
     # En producción lo pondremos a 400, si detecta final se corta solo
     poblar_base_datos(paginas_a_escanear=400, limit_por_pagina=50)

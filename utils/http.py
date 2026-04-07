@@ -1,5 +1,7 @@
 import time
 import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 from curl_cffi import requests
 
 def fetch_with_retry(method, url, max_retries=3, backoff_seconds=5, **kwargs):

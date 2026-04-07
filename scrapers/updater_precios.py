@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import sys
 import os
 import time
@@ -41,7 +44,7 @@ def extraer_precio_futwiz(slug, futwiz_id):
                 if g.get('prices') and g['prices'].get('console') and g['prices']['console'].get('bin'):
                     return int(g['prices']['console']['bin'])
     except Exception as e:
-        print(f"Excepción obteniendo precio para {slug}: {e}")
+        logger.error(f"Excepción obteniendo precio para {slug}: {e}")
         
     return 0
 
@@ -50,14 +53,14 @@ def actualizar_todos_los_precios():
     Obtiene todos los jugadores de la base de datos, extrae sus precios
     actualizados mediante la API de Futwiz y los guarda en la BD.
     """
-    print("🚀 Iniciando actualizador de precios masivo...")
+    logger.info("🚀 Iniciando actualizador de precios masivo...")
     jugadores = obtener_todos_los_jugadores()
     
     if not jugadores:
-        print("⚠️ No hay jugadores en la base de datos para actualizar.")
+        logger.warning("⚠️ No hay jugadores en la base de datos para actualizar.")
         return
         
-    print(f"📊 Se encontraron {len(jugadores)} jugadores para actualizar. Esto tomará un tiempo.")
+    logger.info(f"📊 Se encontraron {len(jugadores)} jugadores para actualizar. Esto tomará un tiempo.")
     
     actualizados_count = 0
     errores_count = 0
@@ -68,25 +71,25 @@ def actualizar_todos_los_precios():
         slug = jugador['slug']
         nombre = jugador['nombre']
         
-        print(f"🔍 Buscando API FC26 para {nombre}...")
+        logger.info(f"🔍 Buscando API FC26 para {nombre}...")
         
         nuevo_precio = extraer_precio_futwiz(slug, futwiz_id)
         
         if nuevo_precio > 0:
             if actualizar_precio_jugador(jugador_id, nuevo_precio):
                 actualizados_count += 1
-                print(f"   ✅ Precio actualizado: {nuevo_precio}")
+                logger.info(f"   ✅ Precio actualizado: {nuevo_precio}")
             else:
                 pass
         else:
-            print(f"   ❌ No se pudo extraer el precio API de {nombre}.")
+            logger.info(f"   ❌ No se pudo extraer el precio API de {nombre}.")
             errores_count += 1
             
         time.sleep(1)
         
-    print("\n🏁 Actualización de precios finalizada.")
-    print(f"✅ Jugadores actualizados con éxito: {actualizados_count}")
-    print(f"❌ Errores o precios sin cambios: {errores_count}")
+    logger.info("\n🏁 Actualización de precios finalizada.")
+    logger.info(f"✅ Jugadores actualizados con éxito: {actualizados_count}")
+    logger.error(f"❌ Errores o precios sin cambios: {errores_count}")
 
 if __name__ == "__main__":
     actualizar_todos_los_precios()

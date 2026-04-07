@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import sqlite3
 import re
 import time
@@ -17,7 +20,7 @@ def run():
     # Get all promo types that are not mapped yet
     cursor.execute("SELECT id FROM tipos_carta WHERE nombre LIKE 'Promo %'")
     promos = cursor.fetchall()
-    print(f"Total a procesar: {len(promos)}")
+    logger.info(f"Total a procesar: {len(promos)}")
     
     for (tipo_id,) in promos:
         cursor.execute("SELECT futwiz_id, slug, nombre FROM jugadores WHERE version_carta = ? LIMIT 1", (tipo_id,))
@@ -27,7 +30,7 @@ def run():
             
         futwiz_id, slug, player_name = row
         url = f"https://www.futwiz.com/en/fc26/player/{slug}/{futwiz_id}"
-        print(f"Fetching {tipo_id} from {url}")
+        logger.info(f"Fetching {tipo_id} from {url}")
         
         try:
             res = requests.get(url, impersonate="chrome120", timeout=10)
@@ -39,14 +42,14 @@ def run():
                     if promo_match:
                         promo_name = promo_match.group(1).strip()
                         if promo_name:
-                            print(f"-> Mapped {tipo_id} to '{promo_name}'")
+                            logger.info(f"-> Mapped {tipo_id} to '{promo_name}'")
                             cursor.execute("UPDATE tipos_carta SET nombre = ? WHERE id = ?", (promo_name, tipo_id))
                             conn.commit()
                     else:
-                        print(f"-> Could not parse promo from title: {title}")
+                        logger.info(f"-> Could not parse promo from title: {title}")
             time.sleep(0.5)
         except Exception as e:
-            print("Error:", e)
+            logger.error("Error:", e)
             
     conn.close()
 

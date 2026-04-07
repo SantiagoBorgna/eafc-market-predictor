@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import sqlite3
 import os
 
@@ -48,7 +51,7 @@ def insertar_jugador(futwiz_id, slug, nombre, rating, version_carta, liga, equip
         jugador_id = cursor.lastrowid
         return jugador_id
     except sqlite3.Error as e:
-        print(f"Error al insertar el jugador {nombre}: {e}")
+        logger.error(f"Error al insertar el jugador {nombre}: {e}")
         return None
     finally:
         conn.close()
@@ -76,7 +79,7 @@ def buscar_jugador_por_requisito(criterios):
         # Convertimos a una lista de diccionarios para que sea más fácil de usar
         return [dict(row) for row in resultados]
     except sqlite3.Error as e:
-        print(f"Error en la búsqueda: {e}")
+        logger.error(f"Error en la búsqueda: {e}")
         return []
     finally:
         conn.close()
@@ -127,7 +130,7 @@ def actualizar_precio_jugador(jugador_id, nuevo_precio):
         return True
         
     except sqlite3.Error as e:
-        print(f"Error actualizando precio: {e}")
+        logger.error(f"Error actualizando precio: {e}")
         return False
     finally:
         conn.close()
@@ -149,7 +152,7 @@ def eliminar_jugador(jugador_id):
         # Retornamos cuantas filas se borraron para saber si existia
         return cursor.rowcount > 0
     except sqlite3.Error as e:
-        print(f"Error al eliminar jugador: {e}")
+        logger.error(f"Error al eliminar jugador: {e}")
         return False
     finally:
         conn.close()
@@ -167,7 +170,7 @@ def obtener_todos_los_jugadores():
         cursor.execute("SELECT * FROM jugadores")
         return [dict(row) for row in cursor.fetchall()]
     except sqlite3.Error as e:
-        print(f"Error obteniendo todos los jugadores: {e}")
+        logger.error(f"Error obteniendo todos los jugadores: {e}")
         return []
     finally:
         conn.close()
@@ -185,7 +188,7 @@ def obtener_jugador_por_id(jugador_id):
         row = cursor.fetchone()
         return dict(row) if row else None
     except sqlite3.Error as e:
-        print(f"Error buscando al jugador {jugador_id}: {e}")
+        logger.error(f"Error buscando al jugador {jugador_id}: {e}")
         return None
     finally:
         conn.close()
@@ -203,7 +206,7 @@ def obtener_jugador_por_futwiz_id(futwiz_id):
         row = cursor.fetchone()
         return dict(row) if row else None
     except sqlite3.Error as e:
-        print(f"Error buscando al jugador experto por futwiz_id {futwiz_id}: {e}")
+        logger.error(f"Error buscando al jugador experto por futwiz_id {futwiz_id}: {e}")
         return None
     finally:
         conn.close()
@@ -223,7 +226,7 @@ def registrar_suscriptor(chat_id, username=None, tipo_chat='private'):
         conn.commit()
         return True
     except sqlite3.Error as e:
-        print(f"Error al registrar el suscriptor: {e}")
+        logger.error(f"Error al registrar el suscriptor: {e}")
         return False
     finally:
         conn.close()
@@ -238,7 +241,7 @@ def obtener_suscriptores():
         cursor.execute("SELECT chat_id FROM suscriptores")
         return [row[0] for row in cursor.fetchall()]
     except sqlite3.Error as e:
-        print(f"Error al obtener suscriptores: {e}")
+        logger.error(f"Error al obtener suscriptores: {e}")
         return []
     finally:
         conn.close()
@@ -277,7 +280,7 @@ def obtener_suscriptores_separados():
                 
         return Listas
     except sqlite3.Error as e:
-        print(f"Error al obtener suscriptores separados: {e}")
+        logger.error(f"Error al obtener suscriptores separados: {e}")
         return {'vip': [], 'gratis': []}
     finally:
         conn.close()
@@ -295,7 +298,7 @@ def obtener_estado_suscripcion(chat_id):
         row = cursor.fetchone()
         return dict(row) if row else None
     except sqlite3.Error as e:
-        print(f"Error al obtener estado de suscripción: {e}")
+        logger.error(f"Error al obtener estado de suscripción: {e}")
         return None
     finally:
         conn.close()
@@ -310,7 +313,7 @@ def contar_jugadores():
         cursor.execute("SELECT COUNT(*) FROM jugadores")
         return cursor.fetchone()[0]
     except sqlite3.Error as e:
-        print(f"Error contando jugadores: {e}")
+        logger.error(f"Error contando jugadores: {e}")
         return 0
     finally:
         conn.close()
@@ -340,7 +343,7 @@ def buscar_jugador_por_nombre(nombre_parcial):
             
         return resultados
     except sqlite3.Error as e:
-        print(f"Error buscando jugador por nombre: {e}")
+        logger.error(f"Error buscando jugador por nombre: {e}")
         return []
     finally:
         conn.close()
@@ -361,7 +364,7 @@ def actualizar_vip_usuario(user_id, dias):
         conn.commit()
         return cursor.rowcount > 0
     except sqlite3.Error as e:
-        print(f"Error al actualizar VIP: {e}")
+        logger.error(f"Error al actualizar VIP: {e}")
         return False
     finally:
         conn.close()
@@ -401,7 +404,7 @@ def limpiar_vips_vencidos():
             
         return chat_ids_vencidos
     except sqlite3.Error as e:
-        print(f"Error al limpiar VIPs vencidos: {e}")
+        logger.error(f"Error al limpiar VIPs vencidos: {e}")
         return []
     finally:
         conn.close()
@@ -414,7 +417,7 @@ def es_post_nuevo(post_id):
         cursor.execute("SELECT 1 FROM reddit_leaks WHERE post_id = ?", (post_id,))
         return cursor.fetchone() is None
     except sqlite3.Error as e:
-        print(f"Error al verificar post de Reddit: {e}")
+        logger.error(f"Error al verificar post de Reddit: {e}")
         return False
     finally:
         conn.close()
@@ -427,13 +430,13 @@ def registrar_post(post_id, titulo):
         cursor.execute("INSERT INTO reddit_leaks (post_id, titulo) VALUES (?, ?)", (post_id, titulo))
         conn.commit()
     except sqlite3.Error as e:
-        print(f"Error al registrar post de Reddit: {e}")
+        logger.error(f"Error al registrar post de Reddit: {e}")
     finally:
         conn.close()
 
 # Bloque de prueba
 if __name__ == '__main__':
-    print("--- 🧪 Test de Funciones CRUD ---")
+    logger.info("--- 🧪 Test de Funciones CRUD ---")
     
     # 1. Insertamos un jugador de prueba
     id_creado = insertar_jugador(
@@ -449,14 +452,14 @@ if __name__ == '__main__':
         precio_actual=25000,
         precio_historico_minimo=0
     )
-    print(f"✅ Jugador insertado con ID interno: {id_creado}")
+    logger.info(f"✅ Jugador insertado con ID interno: {id_creado}")
     
     # 2. Actualizamos el precio
     actualizar_precio_jugador(id_creado, 22000)
-    print("✅ Precio actualizado (simulando un drop bajista de mercado)")
+    logger.info("✅ Precio actualizado (simulando un drop bajista de mercado)")
     
     # 3. Buscamos al jugador por la nacionalidad y version
     resultados = buscar_jugador_por_requisito({'nacionalidad': 'Argentina', 'version_carta': 'Gold'})
-    print(f"🔍 Resultados de la búsqueda:")
+    logger.info(f"🔍 Resultados de la búsqueda:")
     for r in resultados:
-        print(f" - {r['nombre']} ({r['rating']}) | Precio Actual: {r['precio_actual']} | Mínimo: {r['precio_historico_minimo']}")
+        logger.info(f" - {r['nombre']} ({r['rating']}) | Precio Actual: {r['precio_actual']} | Mínimo: {r['precio_historico_minimo']}")

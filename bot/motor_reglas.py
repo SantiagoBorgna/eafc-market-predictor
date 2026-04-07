@@ -1,3 +1,6 @@
+import logging
+from utils.logger import get_logger
+logger = get_logger(__name__)
 import re
 import sys
 import os
@@ -69,7 +72,7 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
         if precio_actual <= (precio_min * 1.15):
             oportunidades.append(j)
         else:
-            print(f"Jugador {j['nombre']} ignorado, precio muy inflado (Actual: {precio_actual}, Mínimo: {precio_min})")
+            logger.info(f"Jugador {j['nombre']} ignorado, precio muy inflado (Actual: {precio_actual}, Mínimo: {precio_min})")
             
     # Armamos el mensaje
     requisitos_texto = ", ".join([f"{k}: {v}" for k, v in requisitos.items()])
@@ -89,22 +92,22 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
 
 # --- Bloque de Prueba ---
 if __name__ == '__main__':
-    print("--- 🧪 Test de Motor de Reglas y Predicción ---")
+    logger.info("--- 🧪 Test de Motor de Reglas y Predicción ---")
     
     # Simulamos un texto de una filtración real que podría llegar por RSS o Twitter
     texto_ejemplo_1 = "🚨 LEAK: The upcoming Player of the Month SBC will require an 90 Rated squad including at least 1 player from Argentina."
     texto_ejemplo_2 = "SBC leaked! Requires an 84 rated squad from LaLiga."
     
-    print("\n[TEST 1]")
-    print(f"Texto: {texto_ejemplo_1}")
+    logger.info("\n[TEST 1]")
+    logger.info(f"Texto: {texto_ejemplo_1}")
     analisis_1, req_1 = analizar_filtracion_y_recomendar(texto_ejemplo_1)
-    print("Resultado:")
-    print(analisis_1)
-    print(f"Requisitos extraídos: {req_1}")
+    logger.info("Resultado:")
+    logger.info(analisis_1)
+    logger.info(f"Requisitos extraídos: {req_1}")
     
-    print("\n[TEST 2]")
-    print(f"Texto: {texto_ejemplo_2}")
+    logger.info("\n[TEST 2]")
+    logger.info(f"Texto: {texto_ejemplo_2}")
     analisis_2, req_2 = analizar_filtracion_y_recomendar(texto_ejemplo_2)
-    print("Resultado:")
-    print(analisis_2)
-    print(f"Requisitos extraídos: {req_2}")
+    logger.info("Resultado:")
+    logger.info(analisis_2)
+    logger.info(f"Requisitos extraídos: {req_2}")
