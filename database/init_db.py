@@ -85,6 +85,12 @@ def init_db():
     logger.info("Creando índices...")
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_slug ON jugadores(slug)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_historial_jugador ON historial_precios(jugador_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_nombre ON jugadores(nombre)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_rating ON jugadores(rating)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_nacion ON jugadores(nacionalidad)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_jugador_liga ON jugadores(liga)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_suscriptores_fecha ON suscriptores(fecha_vencimiento_vip)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_suscriptores_is_vip ON suscriptores(is_vip)')
 
     conn.commit()
     conn.close()
