@@ -4,6 +4,23 @@ logger = get_logger(__name__)
 import re
 import sys
 import os
+import json
+
+def load_config():
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.warning("config.json no encontrado, cargando opciones por defecto.")
+        return {
+            "motor_reglas": {
+                "max_sobreprecio_inversion": 1.15,
+                "max_recomendaciones_mostrar": 5
+            }
+        }
+
+CONFIG = load_config()
 
 # Agregamos la raíz del proyecto al sys.path para poder importar modules desde otras carpetas
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -68,8 +85,9 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
         if precio_actual == 0 or precio_min == 0:
             continue
             
-        # Si el precio actual está muy cerca (o es igual) al mínimo histórico (ej: máximo un 15% más caro que el piso)
-        if precio_actual <= (precio_min * 1.15):
+        umbral_sobreprecio = CONFIG.get("motor_reglas", {}).get("max_sobreprecio_inversion", 1.15)
+        # Si el precio actual está muy cerca (o es igual) al mínimo histórico
+        if precio_actual <= (precio_min * umbral_sobreprecio):
             oportunidades.append(j)
         else:
             logger.info(f"Jugador {j['nombre']} ignorado, precio muy inflado (Actual: {precio_actual}, Mínimo: {precio_min})")
@@ -81,7 +99,8 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
     
     if oportunidades:
         mensaje += "📈 **POSIBLES INVERSIONES:**\n"
-        for op in oportunidades[:5]: # Mostramos máximo 5 para no saturar el chat
+        max_items = CONFIG.get("motor_reglas", {}).get("max_recomendaciones_mostrar", 5)
+        for op in oportunidades[:max_items]: # Mostramos hasta el máximo configurado
             mensaje += f"• {op['nombre']} ({op['rating']}) - Precio Actual: {op['precio_actual']} 🪙 (Piso Histórico: {op['precio_historico_minimo']})\n"
             
         mensaje += "\n⚠️ *ATENCIÓN: Estas cartas PUEDEN llegar a aumentar de valor si el SBC dispara su demanda. Esto es solo una predicción basada en datos estadísticos, no una certeza absoluta. Invertí con precaución.*"
