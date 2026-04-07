@@ -378,13 +378,12 @@ def limpiar_vips_vencidos():
     cursor = conn.cursor()
     # Usamos localtime para comparar con la hora actual del equipo (que es donde se corre el bot)
     # o puede usarse datetime('now', 'localtime')
-    
     chat_ids_vencidos = []
     try:
-        # Encontrar los vencidos
+        # Encontrar los vencidos (fechas en UTC)
         cursor.execute('''
             SELECT chat_id FROM suscriptores 
-            WHERE is_vip = 1 AND fecha_vencimiento_vip < datetime('now', 'localtime')
+            WHERE is_vip = 1 AND fecha_vencimiento_vip < datetime('now')
         ''')
         vencidos = cursor.fetchall()
         

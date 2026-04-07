@@ -771,10 +771,9 @@ if __name__ == "__main__":
         # Tarea de Healthcheck cada 2 horas (7200 segundos) para validar subsistemas
         app.job_queue.run_repeating(tarea_healthcheck, interval=7200, first=120)
         
-        # Tarea diaria: Ejecutar limpieza de VIPs a las 00:00 (hora local de Argentina, que es UTC-3)
-        # 00:00 local ARG -> 03:00 UTC
-        hora_ejecucion = datetime.time(hour=3, minute=0, tzinfo=datetime.timezone.utc)
-        app.job_queue.run_daily(tarea_limpieza_vips, time=hora_ejecucion)
+        # Tarea de limpieza VIP: corre al inicio (15segs) y luego cada 6 horas (21600 segundos)
+        # para garantizar la limpieza incluso si la compu que aloja al bot se apaga a la noche.
+        app.job_queue.run_repeating(tarea_limpieza_vips, interval=21600, first=15)
         
         # Registro de comandos
         app.add_handler(CommandHandler("start", start))
