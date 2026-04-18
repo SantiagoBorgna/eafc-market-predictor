@@ -107,8 +107,8 @@ def actualizar_precio_jugador(jugador_id, nuevo_precio):
             
         # 3. Determinar si hay un nuevo mínimo
         precio_historico_minimo_actualizado = precio_historico_minimo
-        # Si el histórico era 0 o el nuevo es menor al histórico
-        if precio_historico_minimo == 0 or nuevo_precio < precio_historico_minimo:
+        # Si el histórico era 0, NULL o el nuevo es menor al histórico
+        if not precio_historico_minimo or nuevo_precio < precio_historico_minimo:
             precio_historico_minimo_actualizado = nuevo_precio
             
         # 4. Actualizar al jugador

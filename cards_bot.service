@@ -1,0 +1,17 @@
+[Unit]
+Description=FutMetrics EA FC 25 Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+# Cambiar "/home/pi/cards_bot" por la ruta real donde clones el repositorio
+WorkingDirectory=/home/pi/cards_bot
+# Cambiar esto si usas un entorno virtual (recomendado: /home/pi/cards_bot/venv/bin/python)
+ExecStart=/usr/bin/python3 app.py
+Restart=always
+RestartSec=10
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

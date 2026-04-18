@@ -741,6 +741,31 @@ async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_
             except Exception as e:
                 logging.error(f"Error rechazando/avisando a {user_id}: {e}")
 
+async def tarea_updater_precios_rapido_async(context: ContextTypes.DEFAULT_TYPE):
+    from scrapers.updater_precios import actualizar_todos_los_precios
+    try:
+        logging.info("Ejecutando actualizador rápido de precios (Top 3000)...")
+        # Envoltorio lambda o functools para pasar argumentos a to_thread si no los admite directamente
+        await asyncio.to_thread(actualizar_todos_los_precios, 60)
+    except Exception as e:
+        logging.error(f"Error en tarea_updater_precios_rapido_async: {e}")
+
+async def tarea_updater_precios_profundo_async(context: ContextTypes.DEFAULT_TYPE):
+    from scrapers.updater_precios import actualizar_todos_los_precios
+    try:
+        logging.info("Ejecutando actualizador masivo profundo de precios (Todos)...")
+        await asyncio.to_thread(actualizar_todos_los_precios, 380)
+    except Exception as e:
+        logging.error(f"Error en tarea_updater_precios_profundo_async: {e}")
+
+async def tarea_tracker_novedades_async(context: ContextTypes.DEFAULT_TYPE):
+    from scrapers.tracker_novedades import chequear_cartas_nuevas
+    try:
+        logging.info("Ejecutando tracker de novedades en background...")
+        await asyncio.to_thread(chequear_cartas_nuevas)
+    except Exception as e:
+        logging.error(f"Error en tarea_tracker_novedades_async: {e}")
+
 from telegram import BotCommand
 from telegram.ext import Application
 
@@ -777,6 +802,19 @@ if __name__ == "__main__":
         # Tarea de limpieza VIP: corre al inicio (15segs) y luego cada 6 horas (21600 segundos)
         # para garantizar la limpieza incluso si la compu que aloja al bot se apaga a la noche.
         app.job_queue.run_repeating(tarea_limpieza_vips, interval=21600, first=15)
+        
+        # Scrapers integrados
+        
+        # Updater Rápido: Top 3000 jugadores (60 páginas) cada 30 minutos
+        app.job_queue.run_repeating(tarea_updater_precios_rapido_async, interval=1800, first=60)
+        
+        # Updater Profundo: Todos los 19000 jugadores (380 páginas) 1 vez al día de madrugada (Ej: 04:30 AM UTC)
+        hora_precios = datetime.time(hour=4, minute=30, tzinfo=datetime.timezone.utc)
+        app.job_queue.run_daily(tarea_updater_precios_profundo_async, time=hora_precios)
+        
+        # Tracker de cartas nuevas
+        hora_update = datetime.time(hour=18, minute=15, tzinfo=datetime.timezone.utc)
+        app.job_queue.run_daily(tarea_tracker_novedades_async, time=hora_update)
         
         # Registro de comandos
         app.add_handler(CommandHandler("start", start))

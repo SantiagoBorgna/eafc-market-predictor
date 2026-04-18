@@ -22,11 +22,13 @@ def parsear_novedades_futwiz():
     Busca los top 150 jugadores más recientes/altos usando la API de Next.js.
     Dado que las nuevas cartas promo suelen entrar en el top rating, esto es altamente eficiente.
     """
+    from utils.http import fetch_with_retry, get_next_action
+    
     url = "https://www.futwiz.com/fc26/players"
     headers = {
         'accept': 'text/x-component',
         'content-type': 'text/plain;charset=UTF-8',
-        'next-action': '7f14f6fdfcf68078a40fee222c3416dc2d522611c3',
+        'next-action': get_next_action(),
     }
     
     jugadores_extraidos = []
