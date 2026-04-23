@@ -125,7 +125,7 @@ def actualizar_todos_los_precios(paginas=60):
                                                 admin_id = os.getenv("ADMIN_ID")
                                                 vip_group_id = os.getenv("VIP_GROUP_ID")
                                                 if token:
-                                                    msg = f"📉 **¡PANIC SELLING DETECTADO!** 📉\n\nEl precio de **{nombre}** ({rating_str}) bajó de forma repentina a **{nuevo_precio}** 🪙."
+                                                    msg = alerta if isinstance(alerta, str) else f"📉 **¡PANIC SELLING DETECTADO!** 📉\n\nEl precio de **{nombre}** ({rating_str}) bajó de forma repentina a **{nuevo_precio}** 🪙."
                                                     url_tg = f"https://api.telegram.org/bot{token}/sendMessage"
                                                     if admin_id:
                                                         requests.post(url_tg, json={"chat_id": admin_id, "text": msg, "parse_mode": "Markdown"}, impersonate="chrome120")
