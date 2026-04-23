@@ -142,9 +142,9 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                 
                 # Análisis mediante el Motor de Reglas
                 recomendacion, requisitos_extraidos = analizar_filtracion_y_recomendar(titulo)
-                full_msg = f"🚨 **NUEVA FILTRACIÓN** 🚨\n\n{titulo}\n🔗 {link}"
+                full_msg = f"🚨 *NUEVA FILTRACIÓN* 🚨\n\n{titulo}\n🔗 {link}"
                 if recomendacion:
-                    full_msg += f"\n\n💡 **Recomendación:**\n{recomendacion}"
+                    full_msg += f"\n\n💡 *Recomendación:*\n{recomendacion}"
                 
                 # Segmentación de usuarios
                 listas = obtener_suscriptores_separados()
@@ -172,7 +172,7 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                     ADMIN_ID = os.getenv("ADMIN_ID")
                     if ADMIN_ID:
                         try:
-                            await context.bot.send_message(chat_id=int(ADMIN_ID), text=f"**[TWEET SUGERIDO]**\n\n{texto_tweet}", parse_mode='Markdown')
+                            await context.bot.send_message(chat_id=int(ADMIN_ID), text=f"*[TWEET SUGERIDO]*\n\n{texto_tweet}", parse_mode='Markdown')
                             logging.info("Alerta de Twitter enviada al admin.")
                         except Exception as e:
                             logging.error(f"Error enviando alerta de Twitter al admin: {e}")
@@ -190,8 +190,8 @@ async def tarea_reddit(context: ContextTypes.DEFAULT_TYPE):
     if not filtracion:
         return
         
-    mensaje_vip = f"🚨 **FILTRACIÓN CONFIRMADA** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
-    mensaje_gratis = f"🚨 **FILTRACIÓN** 🚨\n\n📌 **{filtracion['titulo']}**\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no llegar tarde al próximo subidón de precio!*"
+    mensaje_vip = f"🚨 *FILTRACIÓN CONFIRMADA* 🚨\n\n📌 *{filtracion['titulo']}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
+    mensaje_gratis = f"🚨 *FILTRACIÓN* 🚨\n\n📌 *{filtracion['titulo']}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no llegar tarde al próximo subidón de precio!*"
     
     listas = obtener_suscriptores_separados()
     vips = listas.get('vip', [])
@@ -280,7 +280,7 @@ async def tarea_healthcheck(context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     chat_id=int(ADMIN_ID), 
-                    text="🚨 **ALERTA CRÍTICA (CardsBot)** 🚨\n\nEl sistema reportó fallos en el Healthcheck interno (DB caída o Scrapers congelados). Revisar servidor de inmediato.", 
+                    text="🚨 *ALERTA CRÍTICA (CardsBot)* 🚨\n\nEl sistema reportó fallos en el Healthcheck interno (DB caída o Scrapers congelados). Revisar servidor de inmediato.", 
                     parse_mode='Markdown'
                 )
             except Exception:
@@ -298,10 +298,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if tipo == 'private':
         msj = (
-            "¡Bienvenido a **FutMetrics**! ⚽📈\n\n"
-            "Gracias por registrarte. Este bot detecta automáticamente filtraciones y caídas de mercado en EA FC 25.\n\n"
+            "¡Bienvenido a *FutMetrics*! ⚽📈\n\n"
+            "Gracias por registrarte. Este bot detecta automáticamente filtraciones y caídas de mercado en EA FC 26.\n\n"
             "Para continuar, elegí tu plan haciendo clic en uno de los comandos:\n\n"
-            "🆓 /gratis - Recibís las alertas en el grupo gratuito con 15 minutos de retraso.\n"
+            "🆓 /gratis - Recibís las alertas en el grupo gratuito con retraso.\n"
             "💎 /vip - Recibís las alertas al instante, con oportunidades de inversión seguras.\n\n"
             "💡 *Tip: Podés abrir el botón Menú de Telegram o usar /ayuda para ver mis comandos.*"
         )
@@ -342,16 +342,16 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # El admin no tiene vencimiento aplicable en la DB usualmente, o podría tener NULL
         vence = estado['vencimiento'] if estado['vencimiento'] else "Ilimitado"
         msj = (
-            "👑 **Estado de tu Suscripción: VIP** 👑\n\n"
+            "👑 *Estado de tu Suscripción: VIP* 👑\n\n"
             "✅ Tenés acceso completo a las alertas en tiempo real.\n"
-            f"📅 **Tu plan vence el:** {vence}\n\n"
+            f"📅 *Tu plan vence el:* {vence}\n\n"
             "💡 *Si necesitás renovar, podés ver la info de pago usando /vip*"
         )
     else:
         msj = (
-            "🆓 **Estado de tu Suscripción: GRATIS** 🆓\n\n"
+            "🆓 *Estado de tu Suscripción: GRATIS* 🆓\n\n"
             "Actualmente recibís las alertas con retraso en nuestro grupo gratuito.\n\n"
-            "Para recibir las notificaciones **al instante** y comprar jugadores antes de que suban de precio, pasate a nuestro plan Premium tocando acá:\n"
+            "Para recibir las notificaciones *al instante* y comprar jugadores antes de que suban de precio, pasate a nuestro plan Premium tocando acá:\n"
             "👉 /vip"
         )
         
@@ -360,13 +360,13 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Menú de ayuda con todos los comandos"""
     msj = (
-        "🤖 **Menú de Ayuda - FutMetrics**\n\n"
+        "🤖 *Menú de Ayuda - FutMetrics*\n\n"
         "Comandos disponibles para interactuar conmigo:\n"
         "🔸 /start - Menú principal y elección de planes.\n"
         "🔸 /estado - Revisa tu plan actual y vencimiento.\n"
         "🔸 /vip - Info sobre el plan Premium.\n"
         "🔸 /gratis - Entrá a la comunidad gratuita.\n"
-        "🔸 /buscar - Buscador premium de cartas de FC 25.\n"
+        "🔸 /buscar - Buscador premium de cartas de FC 26.\n"
         "🔸 /soporte - Hablá con un humano si tenés dudas o querés pagar.\n"
         "🔸 /id - Te devuelve tu Telegram ID único."
     )
@@ -376,7 +376,7 @@ async def soporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra el contacto de soporte"""
     contacto = os.getenv("SUPPORT_CONTACT", "@TuAdminSoporte")
     msj = (
-        f"👨‍💻 **Soporte y Contacto**\n\n"
+        f"👨‍💻 *Soporte y Contacto*\n\n"
         f"Si tenés dudas, problemas técnicos o querés enviar el comprobante de tu pago VIP, escribile un mensaje privado a:\n"
         f"👉 {contacto}\n\n"
         f"Recordá siempre enviar tu *ID numérico* para que puedan encontrarte más rápido: `{update.effective_chat.id}`"
@@ -394,7 +394,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     mensaje_masivo = " ".join(context.args)
-    mensaje_masivo = f"📢 **Mensaje Institucional** 📢\n\n{mensaje_masivo}"
+    mensaje_masivo = f"📢 *Mensaje Institucional* 📢\n\n{mensaje_masivo}"
     
     from database.crud import obtener_suscriptores
     todos = obtener_suscriptores()
@@ -424,7 +424,7 @@ async def vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Muestra información sobre la suscripción VIP y da a elegir la región para pricing regional
     """
     msj = (
-        "💎 **Suscripción VIP** 💎\n\n"
+        "💎 *Suscripción VIP* 💎\n\n"
         "• Alertas al instante.\n"
         "• Tracking en tiempo real de SBC Leaks.\n"
         "• Descubridor e Historial de precios.\n\n"
@@ -448,7 +448,7 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data == 'vip_inicio':
         msj = (
-            "💎 **Suscripción VIP** 💎\n\n"
+            "💎 *Suscripción VIP* 💎\n\n"
             "• Alertas al instante.\n"
             "• Tracking en tiempo real de SBC Leaks.\n"
             "• Descubridor e Historial de precios.\n\n"
@@ -465,18 +465,18 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mp_link = os.getenv("MP_SUBSCRIPTION_LINK", "Configurar link en .env")
         alias_pago = os.getenv("PAYMENT_ALIAS", "Tu alias no configurado en .env")
         msj = (
-            "💎 **Suscripción VIP** 💎\n\n"
-            "💰 **Precio Mensual:** $5.000 ARS\n\n"
-            "Podés elegir entre **dos métodos** para abonar:\n\n"
-            "1️⃣ **Débito Automático Mensual** (Mercado Pago)\n"
+            "💎 *Suscripción VIP* 💎\n\n"
+            "💰 *Precio Mensual:* $5.000 ARS\n\n"
+            "Podés elegir entre *dos métodos* para abonar:\n\n"
+            "1️⃣ *Débito Automático Mensual* (Mercado Pago)\n"
             "No tenés que acordarte de pagar todos los meses. Suscribirte al débito automático tocando el enlace:\n"
             f"👉 [Suscribirme con Mercado Pago]({mp_link})\n\n"
-            "2️⃣ **Transferencia Manual 1 Mes**\n"
-            f"💳 **Alias:** {alias_pago}\n\n"
-            "**¿Cómo activo mi plan en ambos casos?**\n"
+            "2️⃣ *Transferencia Manual 1 Mes*\n"
+            f"💳 *Alias:* {alias_pago}\n\n"
+            "*¿Cómo activo mi plan en ambos casos?*\n"
             "1. Realizá la suscripción o transferencia.\n"
             f"2. Contactá a nuestro Admin ({support_contact}) con tu comprobante y enviale este ID tuyo: `{query.message.chat.id}`\n"
-            "3. Apenas el Admin lo verifique, **este bot te va a habilitar el acceso VIP** por 30 días acá mismo.\n\n"
+            "3. Apenas el Admin lo verifique, *este bot te va a habilitar el acceso VIP* por 30 días acá mismo.\n\n"
             "🆓 ¿Preferís empezar sin pagar? Tocá /gratis para ir a la comunidad gratuita."
         )
         teclado = [[InlineKeyboardButton("⬅️ Volver", callback_data='vip_inicio')]]
@@ -484,8 +484,8 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif query.data == 'vip_int':
         msj = (
-            "💎 **Suscripción VIP Internacional** 💎\n\n"
-            "💰 **Precio Mensual:** $5 USD\n\n"
+            "💎 *Suscripción VIP Internacional* 💎\n\n"
+            "💰 *Precio Mensual:* $5 USD\n\n"
             "Elegí tu método de pago preferido para ver las instrucciones exactas:"
         )
         teclado = [
@@ -499,11 +499,11 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'vip_binance':
         binance_addr = os.getenv("BINANCE_ADDRESS", "Tu dirección no configurada en .env")
         msj = (
-            "🟡 **Pago Cripto (USDT)** 🟡\n\n"
+            "🟡 *Pago Cripto (USDT)* 🟡\n\n"
             "¡Perfecto! Sigue estos pasos para activar tu mes:\n\n"
-            "1️⃣ Mandá **5 USDT** a la siguiente dirección:\n"
+            "1️⃣ Mandá *5 USDT* a la siguiente dirección:\n"
             f"`{binance_addr}`\n\n"
-            "⚠️ **IMPORTANTE:** Asegurate de usar la red **BNB Smart Chain (BEP20)**.\n\n"
+            "⚠️ *IMPORTANTE:* Asegurate de usar la red *BNB Smart Chain (BEP20)*.\n\n"
             "2️⃣ Cuando termines, mandá una captura del pago o el ID de transacción (TxID) a nuestro admin:\n"
             f"👉 {support_contact}\n\n"
             f"3️⃣ Pasale tu número de ID para que te habilite el bot instantáneamente: `{query.message.chat.id}`"
@@ -514,9 +514,9 @@ async def botones_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'vip_paypal':
         paypal_link = os.getenv("PAYPAL_LINK", "https://paypal.me/AcaPonTuLinkDePaypal")
         msj = (
-            "🔵 **Pago con PayPal** 🔵\n\n"
+            "🔵 *Pago con PayPal* 🔵\n\n"
             "¡Excelente! Sigue estos pasos para comenzar a ganar:\n\n"
-            "1️⃣ Ingresá al siguiente enlace y aboná **$5 USD**:\n"
+            "1️⃣ Ingresá al siguiente enlace y aboná *$5 USD*:\n"
             f"🔗 [Abonar Suscripción]({paypal_link})\n\n"
             "2️⃣ Cuando termines, enviale el comprobante del pago a nuestro admin:\n"
             f"👉 {support_contact}\n\n"
@@ -581,7 +581,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Estadísticas globales del sistema"""
     total_j = contar_jugadores()
     total_s = len(obtener_suscriptores())
-    await update.message.reply_text(f"📊 **Stats:**\n- Jugadores: {total_j}\n- Suscriptores: {total_s}", parse_mode='Markdown')
+    await update.message.reply_text(f"📊 *Stats:*\n- Jugadores: {total_j}\n- Suscriptores: {total_s}", parse_mode='Markdown')
 
 # --- ESTADOS DE LA CONVERSACIÓN BUSCAR ---
 BUSCAR_NOMBRE, BUSCAR_VERSION = range(2)
@@ -594,10 +594,10 @@ async def buscar_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     es_admin = (str(chat_id) == str(os.getenv("ADMIN_ID")))
     
     if not estado_sub or (not estado_sub['is_vip'] and not es_admin):
-        await update.message.reply_text("💎 **¡Función Premium!** 💎\n\nEl buscador de jugadores y precios en base de datos es una herramienta exclusiva para usuarios VIP.\n\nTocá /vip para actualizar tu plan y desbloquear esta función.")
+        await update.message.reply_text("💎 *¡Función Premium!* 💎\n\nEl buscador de jugadores y precios en base de datos es una herramienta exclusiva para usuarios VIP.\n\nTocá /vip para actualizar tu plan y desbloquear esta función.")
         return ConversationHandler.END
 
-    await update.message.reply_text("🔎 **Búsqueda de Jugador VIP**\n\nPor favor, escribí el **nombre** del jugador que buscás (ej: Messi, Neymar...).", parse_mode='Markdown')
+    await update.message.reply_text("🔎 *Búsqueda de Jugador VIP*\n\nPor favor, escribí el *nombre* del jugador que buscás (ej: Messi, Neymar...).", parse_mode='Markdown')
     return BUSCAR_NOMBRE
 
 async def buscar_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -618,7 +618,7 @@ async def buscar_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Si solo hay una versión, la mostramos directamente para ahorrarle un paso al usuario
     if len(versiones) == 1:
-        res_msg = f"🔍 **Resultados para '{nombre}':**\n\n"
+        res_msg = f"🔍 *Resultados para '{nombre}':*\n\n"
         for r in resultados[:10]:
             res_msg += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
             
@@ -679,7 +679,7 @@ async def buscar_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.clear()
         return ConversationHandler.END
         
-    res_msg = f"🔍 **Resultados para '{nombre}':**\n\n"
+    res_msg = f"🔍 *Resultados para '{nombre}':*\n\n"
     for r in resultados[:10]:
         res_msg += f"• {r['nombre']} ({r['rating']} - {r['version_carta']}) | Precio: {r['precio_actual']} 🪙\n"
         

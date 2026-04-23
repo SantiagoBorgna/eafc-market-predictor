@@ -73,7 +73,7 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
     jugadores_candidatos = buscar_jugador_por_requisito(requisitos)
     
     if not jugadores_candidatos:
-        return f"🔍 **Análisis de Leak:** Se requiere {requisitos}. No tenemos jugadores en la BD que cumplan esto aún.", requisitos
+        return f"🔍 *Análisis de Leak:* Se requiere {requisitos}. No tenemos jugadores en la BD que cumplan esto aún.", requisitos
         
     # Filtramos las "oportunidades": jugadores que están a menos de un 15% de su precio mínimo histórico, o cuyo precio sea > 0
     oportunidades = []
@@ -94,11 +94,11 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
             
     # Armamos el mensaje
     requisitos_texto = ", ".join([f"{k}: {v}" for k, v in requisitos.items()])
-    mensaje = f"🚨 **ANÁLISIS DE MERCADO / SBC LEAK**\n"
+    mensaje = f"🚨 *ANÁLISIS DE MERCADO / SBC LEAK*\n"
     mensaje += f"Requisitos detectados: *{requisitos_texto}*\n\n"
     
     if oportunidades:
-        mensaje += "📈 **POSIBLES INVERSIONES:**\n"
+        mensaje += "📈 *POSIBLES INVERSIONES:*\n"
         max_items = CONFIG.get("motor_reglas", {}).get("max_recomendaciones_mostrar", 5)
         for op in oportunidades[:max_items]: # Mostramos hasta el máximo configurado
             mensaje += f"• {op['nombre']} ({op['rating']}) - Precio Actual: {op['precio_actual']} 🪙 (Piso Histórico: {op['precio_historico_minimo']})\n"
@@ -123,7 +123,7 @@ def detectar_panic_selling(jugador_id, precio_actual, nombre_jugador, rating, ti
     caida = (precio_pasado - precio_actual) / precio_pasado
     
     if caida >= umbral_caida:
-        mensaje = f"📉 **PANIC SELLING DETECTADO**\n\n"
+        mensaje = f"📉 *PANIC SELLING DETECTADO*\n\n"
         mensaje += f"Jugador: *{nombre_jugador}* ({rating})\n"
         mensaje += f"Precio Máx ({tiempo_horas}h atrás): {precio_pasado} 🪙\n"
         mensaje += f"Precio Actual: {precio_actual} 🪙\n"
@@ -134,25 +134,3 @@ def detectar_panic_selling(jugador_id, precio_actual, nombre_jugador, rating, ti
         return mensaje
         
     return None
-
-# --- Bloque de Prueba ---
-if __name__ == '__main__':
-    logger.info("--- 🧪 Test de Motor de Reglas y Predicción ---")
-    
-    # Simulamos un texto de una filtración real que podría llegar por RSS o Twitter
-    texto_ejemplo_1 = "🚨 LEAK: The upcoming Player of the Month SBC will require an 90 Rated squad including at least 1 player from Argentina."
-    texto_ejemplo_2 = "SBC leaked! Requires an 84 rated squad from LaLiga."
-    
-    logger.info("\n[TEST 1]")
-    logger.info(f"Texto: {texto_ejemplo_1}")
-    analisis_1, req_1 = analizar_filtracion_y_recomendar(texto_ejemplo_1)
-    logger.info("Resultado:")
-    logger.info(analisis_1)
-    logger.info(f"Requisitos extraídos: {req_1}")
-    
-    logger.info("\n[TEST 2]")
-    logger.info(f"Texto: {texto_ejemplo_2}")
-    analisis_2, req_2 = analizar_filtracion_y_recomendar(texto_ejemplo_2)
-    logger.info("Resultado:")
-    logger.info(analisis_2)
-    logger.info(f"Requisitos extraídos: {req_2}")
