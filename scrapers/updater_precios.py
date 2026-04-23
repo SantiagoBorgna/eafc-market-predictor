@@ -19,10 +19,11 @@ def extraer_precio_futwiz(slug, futwiz_id):
     Usa la API de Next.js de Futwiz para buscar un jugador y extraer su precio.
     """
     url = "https://www.futwiz.com/fc26/players"
+    from utils.http import get_next_action
     headers = {
         'accept': 'text/x-component',
         'content-type': 'text/plain;charset=UTF-8',
-        'next-action': '7f14f6fdfcf68078a40fee222c3416dc2d522611c3',
+        'next-action': get_next_action(),
     }
     
     # Buscar por slug asegurando límite pequeño

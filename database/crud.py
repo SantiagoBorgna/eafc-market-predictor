@@ -442,7 +442,7 @@ def obtener_precio_hace_n_horas(jugador_id, horas=1):
     """
     Obtiene el precio máximo registrado de un jugador en las últimas N horas.
     """
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute('''

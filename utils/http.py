@@ -40,25 +40,14 @@ _NEXT_ACTION_CACHE = None
 
 def get_next_action():
     """
-    Extrae dinámicamente el ID next-action del sitio web de Futwiz para prevenir caídas
-    cuando Futwiz hace deploys y cambia sus hashes de Next.js.
+    Retorna el ID next-action del sitio web de Futwiz.
+    Actualmente hardcodeado al valor de FC26.
     """
     global _NEXT_ACTION_CACHE
     if _NEXT_ACTION_CACHE:
         return _NEXT_ACTION_CACHE
         
-    try:
-        res = fetch_with_retry('get', "https://www.futwiz.com/fc26/players", impersonate="chrome120")
-        if res.status_code == 200:
-            # Buscamos un hash hexadecimal de 40 caracteres, típicamente el action ID de next.js.
-            matches = re.findall(r'[a-f0-9]{40}', res.text)
-            if matches:
-                # El action id actual de Futwiz siempre está expuesto en su DOM.
-                _NEXT_ACTION_CACHE = matches[0]
-                return _NEXT_ACTION_CACHE
-    except Exception as e:
-        logger.error(f"Error extrayendo next-action dinámico: {e}")
-        
-    # Fallback seguro (último conocido histórico)
-    return "7f14f6fdfcf68078a40fee222c3416dc2d522611c3"
+    # Futwiz FC26 /players search action id
+    _NEXT_ACTION_CACHE = "7f22070460c931899c5e38e8e653ffe50af098bc89"
+    return _NEXT_ACTION_CACHE
 
