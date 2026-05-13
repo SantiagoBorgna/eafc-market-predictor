@@ -191,6 +191,12 @@ async def tarea_reddit(context: ContextTypes.DEFAULT_TYPE):
         return
         
     mensaje_vip = f"🚨 *FILTRACIÓN CONFIRMADA* 🚨\n\n📌 *{filtracion['titulo']}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
+    
+    # Análisis de IA para recomendaciones
+    recomendacion, req = analizar_filtracion_y_recomendar(filtracion['titulo'])
+    if recomendacion:
+        mensaje_vip += f"\n\n{recomendacion}"
+
     mensaje_gratis = f"🚨 *FILTRACIÓN* 🚨\n\n📌 *{filtracion['titulo']}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no llegar tarde al próximo subidón de precio!*"
     
     listas = obtener_suscriptores_separados()
@@ -741,6 +747,36 @@ async def manejar_solicitud_union(update: Update, context: ContextTypes.DEFAULT_
             except Exception as e:
                 logging.error(f"Error rechazando/avisando a {user_id}: {e}")
 
+async def tarea_marquesinas(context: ContextTypes.DEFAULT_TYPE):
+    from scrapers.tracker_partidos import obtener_marquesinas_prediccion
+    from database.crud import obtener_suscriptores_separados
+    
+    marquesinas = obtener_marquesinas_prediccion()
+    if not marquesinas:
+        return
+        
+    mensaje = "🏟️ *PREDICCIÓN DE MARQUESINAS (MARQUEE MATCHUPS)* 🏟️\n\n"
+    mensaje += "Basado en los derbis del próximo fin de semana, estos son los partidos clave:\n\n"
+    
+    for m in marquesinas:
+        mensaje += f"⚽ *{m['local']} vs {m['visitante']}*\n"
+        mensaje += f"📅 Fecha: {m['fecha']} | 🏆 {m['competicion']}\n\n"
+        
+    mensaje += "💡 _Recomendación:_ Comprá jugadores de Oro de estos equipos cerca de su precio de descarte (350-400 monedas) como inversión a bajo riesgo."
+    
+    listas = obtener_suscriptores_separados()
+    vips = listas.get('vip', [])
+    
+    VIP_GROUP_ID = os.getenv("VIP_GROUP_ID")
+    if VIP_GROUP_ID and int(VIP_GROUP_ID) not in vips:
+        vips.append(int(VIP_GROUP_ID))
+        
+    for c_id in vips:
+        try:
+            await context.bot.send_message(chat_id=c_id, text=mensaje, parse_mode='Markdown')
+        except Exception as e:
+            pass
+
 async def tarea_updater_precios_rapido_async(context: ContextTypes.DEFAULT_TYPE):
     from scrapers.updater_precios import actualizar_todos_los_precios
     try:
@@ -815,6 +851,10 @@ if __name__ == "__main__":
         # Tracker de cartas nuevas
         hora_update = datetime.time(hour=18, minute=15, tzinfo=datetime.timezone.utc)
         app.job_queue.run_daily(tarea_tracker_novedades_async, time=hora_update)
+        
+        # Tracker de Marquesinas (Corre todos los Martes a las 14:00 UTC)
+        hora_marquesinas = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)
+        app.job_queue.run_daily(tarea_marquesinas, time=hora_marquesinas, days=(1,)) # 1 = Martes
         
         # Registro de comandos
         app.add_handler(CommandHandler("start", start))

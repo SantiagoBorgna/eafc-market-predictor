@@ -5,6 +5,7 @@ import re
 import sys
 import os
 import json
+import google.generativeai as genai
 
 def load_config():
     config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.json')
@@ -66,10 +67,44 @@ def extraer_requisitos(texto):
 
 def analizar_filtracion_y_recomendar(texto_filtracion):
     """
-    Analiza una filtración, busca jugadores que cumplan el requisito y 
-    arma un reporte de mercado (Alertas de Inversión) con precaución.
+    Analiza una filtración con Google Gemini para "razonar" qué cartas subirán de precio,
+    busca jugadores que cumplan el requisito y arma un reporte de mercado.
     """
-    requisitos = extraer_requisitos(texto_filtracion)
+    api_key = os.getenv("GEMINI_API_KEY")
+    requisitos = {}
+    
+    if api_key:
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            prompt = f"""
+Sos un experto trader de EA FC Ultimate Team. Leé este título de filtración o rumor sobre un SBC o Evolución:
+"{texto_filtracion}"
+
+Basado en este leak, ¿qué cartas van a pedir como requisitos y subirán de precio en el mercado?
+Devolvé SOLO un JSON válido y crudo (sin bloques de código markdown, sin texto adicional) con los criterios clave.
+Claves permitidas: "nacionalidad" (en inglés, ej: Argentina, France), "liga" (ej: Premier League, LaLiga), "rating" (entero).
+Ejemplo de respuesta válida: {{"liga": "Premier League", "rating": 84}}
+Si no podés deducir ninguna característica específica, devolvé {{}}
+"""
+            response = model.generate_content(prompt)
+            texto_json = response.text.strip()
+            
+            # Limpiamos posibles bloques markdown
+            if texto_json.startswith("```json"):
+                texto_json = texto_json.split("```json")[1].split("```")[0].strip()
+            elif texto_json.startswith("```"):
+                texto_json = texto_json.split("```")[1].strip()
+                
+            requisitos = json.loads(texto_json)
+            logger.info(f"Gemini razonó los requisitos: {requisitos}")
+            
+        except Exception as e:
+            logger.error(f"Error procesando leak con Gemini: {e}")
+            requisitos = extraer_requisitos(texto_filtracion)
+    else:
+        logger.info("Sin GEMINI_API_KEY, usando extracción por regex.")
+        requisitos = extraer_requisitos(texto_filtracion)
     
     if not requisitos:
         return None, {} # No se encontraron requisitos útiles en el leak
@@ -78,7 +113,8 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
     jugadores_candidatos = buscar_jugador_por_requisito(requisitos)
     
     if not jugadores_candidatos:
-        return f"🔍 *Análisis de Leak:* Se requiere {requisitos}. No tenemos jugadores en la BD que cumplan esto aún.", requisitos
+        req_text = ", ".join([f"{k}: {v}" for k, v in requisitos.items()])
+        return f"🧠 *Razonamiento de la IA:* Se requiere {req_text}. Sin embargo, no tenemos jugadores en la BD que cumplan esto aún para recomendar.", requisitos
         
     # Filtramos las "oportunidades": jugadores que están a menos de un 15% de su precio mínimo histórico, o cuyo precio sea > 0
     oportunidades = []
@@ -100,17 +136,20 @@ def analizar_filtracion_y_recomendar(texto_filtracion):
     # Armamos el mensaje
     requisitos_texto = ", ".join([f"{k}: {v}" for k, v in requisitos.items()])
     mensaje = f"🚨 *ANÁLISIS DE MERCADO / SBC LEAK*\n"
-    mensaje += f"Requisitos detectados: *{requisitos_texto}*\n\n"
+    if api_key:
+        mensaje += f"🧠 *La IA analizó el Leak y determinó que subirán cartas con:* {requisitos_texto}\n\n"
+    else:
+        mensaje += f"Requisitos detectados: *{requisitos_texto}*\n\n"
     
     if oportunidades:
-        mensaje += "📈 *POSIBLES INVERSIONES:*\n"
+        mensaje += "📈 *RECOMENDACIONES DE INVERSIÓN:*\n"
         max_items = CONFIG.get("motor_reglas", {}).get("max_recomendaciones_mostrar", 5)
         for op in oportunidades[:max_items]: # Mostramos hasta el máximo configurado
             mensaje += f"• {op['nombre']} ({op['rating']}) - Precio Actual: {op['precio_actual']} 🪙 (Piso Histórico: {op['precio_historico_minimo']})\n"
             
         mensaje += "\n⚠️ *ATENCIÓN: Estas cartas PUEDEN llegar a aumentar de valor si el SBC dispara su demanda. Esto es solo una predicción basada en datos estadísticos, no una certeza absoluta. Invertí con precaución.*"
     else:
-        mensaje += "No se detectaron oportunidades claras de inversión (los jugadores actuales que cumplen estos requisitos ya tienen precios inflados o no los tenemos registrados)."
+        mensaje += "La IA procesó el leak pero no se detectaron oportunidades claras de inversión en este momento (los jugadores actuales que cumplen estos requisitos ya tienen precios inflados o no los tenemos registrados)."
         
     return mensaje, requisitos
 
