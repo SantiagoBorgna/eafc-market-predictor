@@ -440,16 +440,27 @@ def limpiar_historial_antiguo(dias_antiguedad=30):
 
 def obtener_precio_hace_n_horas(jugador_id, horas=1):
     """
-    Obtiene el precio máximo registrado de un jugador en las últimas N horas.
+    Obtiene el precio registrado de un jugador más cercano a hace N horas.
+    Busca en una ventana de tiempo estricta para evitar medir caídas de días de antigüedad.
     """
     conn = _get_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute('''
-            SELECT MAX(precio) FROM historial_precios 
+        # Buscamos el registro más cercano a la hora exacta solicitada,
+        # limitando la ventana de búsqueda a un margen de +/- 1 hora alrededor de la hora solicitada
+        # (y hasta 30 mins recientes si horas=1) para no traer un precio de hace 2 días.
+        ventana_min = f'-{horas + 1} hours'
+        ventana_max = f'-{max(0.5, horas - 1)} hours'
+        hora_exacta = f'-{horas} hours'
+        
+        cursor.execute(f'''
+            SELECT precio FROM historial_precios 
             WHERE jugador_id = ? 
-            AND fecha_registro >= datetime('now', ?)
-        ''', (jugador_id, f'-{horas} hours'))
+              AND fecha_registro >= datetime('now', '{ventana_min}')
+              AND fecha_registro <= datetime('now', '{ventana_max}')
+            ORDER BY ABS(julianday(fecha_registro) - julianday(datetime('now', '{hora_exacta}'))) ASC
+            LIMIT 1
+        ''', (jugador_id,))
         row = cursor.fetchone()
         return row[0] if row and row[0] else 0
     except sqlite3.Error as e:

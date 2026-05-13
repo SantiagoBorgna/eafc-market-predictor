@@ -25,6 +25,11 @@ CONFIG = load_config()
 # Agregamos la raíz del proyecto al sys.path para poder importar modules desde otras carpetas
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.crud import buscar_jugador_por_requisito, obtener_precio_hace_n_horas
+import time
+
+# Memoria para el cooldown anti-spam de Panic Selling
+_cooldown_panic_selling = {}
+
 
 # Diccionarios de palabras clave simples para el parser
 NACIONALIDADES_CLAVE = ["Argentina", "Brazil", "France", "Spain", "Germany", "England", "Portugal", "Netherlands"]
@@ -114,6 +119,19 @@ def detectar_panic_selling(jugador_id, precio_actual, nombre_jugador, rating, ti
     Regla Inversa: Analiza si el jugador sufrió una caída violenta en su precio en la última hora.
     Si cae por encima del porcentaje configurado, podría ser Panic Selling.
     """
+    # 1. Filtro de Relevancia: Ignorar cartas con rating menor a 78
+    try:
+        if int(rating) < 78:
+            return None
+    except (ValueError, TypeError):
+        return None
+        
+    # 2. Sistema Anti-Spam: Cooldown de 2 horas (7200 segundos) por jugador
+    current_time = time.time()
+    last_alert_time = _cooldown_panic_selling.get(jugador_id, 0)
+    if (current_time - last_alert_time) < 7200:
+        return None
+
     umbral_caida = CONFIG.get("motor_reglas", {}).get("umbral_panic_selling_caida", 0.15)
     
     precio_pasado = obtener_precio_hace_n_horas(jugador_id, horas=tiempo_horas)
@@ -131,6 +149,10 @@ def detectar_panic_selling(jugador_id, precio_actual, nombre_jugador, rating, ti
         mensaje += "💸 _Posible oportunidad de compra si esperás un rebote inmediato del mercado._"
         
         logger.info(f"Oportunidad Panic Selling: {nombre_jugador} (Cayó {caida*100:.1f}%)")
+        
+        # Registrar alerta enviada en el cooldown
+        _cooldown_panic_selling[jugador_id] = current_time
+        
         return mensaje
         
     return None
