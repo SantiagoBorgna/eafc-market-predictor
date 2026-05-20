@@ -3,3 +3,5 @@ feedparser>=6.0.12
 python-dotenv>=1.2.2
 python-telegram-bot[extra]>=22.6
 google-generativeai>=0.8.0
+playwright>=1.40.0
+beautifulsoup4>=4.12.0
