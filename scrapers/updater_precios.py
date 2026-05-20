@@ -1,33 +1,53 @@
+import sys
+import os
+
+# Agregar el directorio raíz al path para importar módulos como utils y database
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import logging
 from utils.logger import get_logger
 logger = get_logger(__name__)
-import sys
-import os
+
 import time
 import json
 import re
 from curl_cffi import requests
 from utils.http import fetch_with_retry
-
-# Agregar el directorio raíz al path para importar el módulo de base de datos
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from database.crud import obtener_todos_los_jugadores, actualizar_precio_jugador
 
 def extraer_precio_futwiz(slug, futwiz_id):
     """
     Usa la API de Next.js de Futwiz para buscar un jugador y extraer su precio.
+    Usa Playwright para interceptar la firma y payload correctos.
     """
     url = "https://www.futwiz.com/fc26/players"
-    from utils.http import get_next_action
+    from utils.playwright_interceptor import resolver_payload_nextjs
+    
+    interceptor_data = resolver_payload_nextjs()
+    action_id = interceptor_data.get("action_id")
+    raw_payload_str = interceptor_data.get("payload")
+    
+    if not action_id or not raw_payload_str:
+        logger.error("🛑 No se pudo resolver la firma Next.js para un jugador.")
+        return 0
+        
     headers = {
         'accept': 'text/x-component',
         'content-type': 'text/plain;charset=UTF-8',
-        'next-action': get_next_action(),
+        'next-action': action_id,
     }
     
-    # Buscar por slug asegurando límite pequeño
-    data = f'[26,{{"mode":"search","filters":{{}},"search":"{slug}","pagination":{{"page":1,"limit":5}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
+    # Buscar por slug inyectándolo en el payload dinámico capturado
+    try:
+        payload = json.loads(raw_payload_str)
+        # Modificar el término de búsqueda
+        payload[1]["search"] = slug
+        # Reducir límite
+        payload[1]["pagination"]["limit"] = 5
+        data = json.dumps(payload)
+    except Exception as e:
+        logger.error(f"Error modificando payload: {e}")
+        return 0
     
     try:
         res = fetch_with_retry('post', url, headers=headers, data=data, impersonate="chrome120", timeout=15)
@@ -65,9 +85,18 @@ def actualizar_todos_los_precios(paginas=60):
     mapa_jugadores = {str(j['futwiz_id']): j for j in jugadores_bd}
     
     url = "https://www.futwiz.com/fc26/players"
-    from utils.http import get_next_action
+    from utils.playwright_interceptor import resolver_payload_nextjs
     
-    action_id = get_next_action()
+    interceptor_data = resolver_payload_nextjs()
+    action_id = interceptor_data.get("action_id")
+    raw_payload_str = interceptor_data.get("payload")
+    
+    if not action_id or not raw_payload_str:
+        logger.error("🛑 No se pudo resolver el Action ID o el Payload. Deteniendo actualización masiva.")
+        return
+        
+    logger.info(f"✅ Firma Next.js resuelta exitosamente.")
+    
     headers = {
         'accept': 'text/x-component',
         'content-type': 'text/plain;charset=UTF-8',
@@ -80,8 +109,17 @@ def actualizar_todos_los_precios(paginas=60):
     
     for page in range(1, paginas + 1):
         logger.info(f"📄 Descargando página {page}/{paginas} de Futwiz...")
-        data = f'[26,{{"mode":"search","filters":{{}},"search":"$undefined","pagination":{{"page":{page},"limit":50}},"sorting":{{"field":"rating","direction":"desc"}}}}]'
         
+        # Inyectar la página en el payload nativo
+        try:
+            payload = json.loads(raw_payload_str)
+            payload[1]["pagination"]["page"] = page
+            data = json.dumps(payload)
+        except Exception as e:
+            logger.error(f"Error parseando payload dinámico: {e}")
+            fallos_consecutivos += 1
+            continue
+            
         try:
             res = fetch_with_retry('post', url, headers=headers, data=data, impersonate="chrome120", timeout=15)
             if res.status_code != 200:
