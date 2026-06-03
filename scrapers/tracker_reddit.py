@@ -14,7 +14,11 @@ def chequear_filtraciones_reddit():
     Devuelve un diccionario con la nueva filtración o None si no hay nada nuevo.
     """
     fuentes_reddit = [
-        # El oficial buscando por la etiqueta formal 'Leak'
+        # Búsquedas específicas de SBCs para darles prioridad
+        "https://www.reddit.com/r/EASportsFC/search.json?q=SBC+Leak&restrict_sr=on&sort=new",
+        "https://www.reddit.com/r/fut/search.json?q=SBC+Leak&restrict_sr=on&sort=new",
+        
+        # El oficial buscando por la etiqueta formal 'Leak' general
         "https://www.reddit.com/r/EASportsFC/search.json?q=flair%3ALeak&restrict_sr=on&sort=new",
         # El foro alternativo masivo de Ultimate Team
         "https://www.reddit.com/r/fut/search.json?q=leak&restrict_sr=on&sort=new",

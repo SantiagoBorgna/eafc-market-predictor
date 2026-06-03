@@ -7,7 +7,7 @@ h_base = {
     'accept': 'text/x-component',
     'content-type': 'text/plain;charset=UTF-8'
 }
-data = '[26,{"mode":"search","filters":{},"search":"$undefined","pagination":{"page":1,"limit":50},"sorting":{"field":"rating","direction":"desc"}}]'
+data = '[26,{"mode":"search","filters":{},"search":"$undefined","pagination":{"page":1,"limit":40},"sorting":{"field":"rating","direction":"desc"}}]'
 
 for aid in action_ids:
     h = h_base.copy()

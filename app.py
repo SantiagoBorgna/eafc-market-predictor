@@ -141,10 +141,10 @@ async def chequear_feed_periodico(context: ContextTypes.DEFAULT_TYPE):
                 logging.info(f"Filtración detectada: {titulo}")
                 
                 # Análisis mediante el Motor de Reglas
-                recomendacion, requisitos_extraidos = analizar_filtracion_y_recomendar(titulo)
-                full_msg = f"🚨 *NUEVA FILTRACIÓN* 🚨\n\n{titulo}\n🔗 {link}"
+                recomendacion, requisitos_extraidos, titulo_traducido = analizar_filtracion_y_recomendar(titulo)
+                full_msg = f"🚨 *NUEVA FILTRACIÓN* 🚨\n\n📌 *{titulo_traducido}*\n🔗 {link}"
                 if recomendacion:
-                    full_msg += f"\n\n💡 *Recomendación:*\n{recomendacion}"
+                    full_msg += f"\n\n{recomendacion}"
                 
                 # Segmentación de usuarios
                 listas = obtener_suscriptores_separados()
@@ -190,14 +190,14 @@ async def tarea_reddit(context: ContextTypes.DEFAULT_TYPE):
     if not filtracion:
         return
         
-    mensaje_vip = f"🚨 *FILTRACIÓN CONFIRMADA* 🚨\n\n📌 *{filtracion['titulo']}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
-    
     # Análisis de IA para recomendaciones
-    recomendacion, req = analizar_filtracion_y_recomendar(filtracion['titulo'])
+    recomendacion, req, titulo_traducido = analizar_filtracion_y_recomendar(filtracion['titulo'])
+    
+    mensaje_vip = f"🚨 *FILTRACIÓN CONFIRMADA* 🚨\n\n📌 *{titulo_traducido}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})"
     if recomendacion:
         mensaje_vip += f"\n\n{recomendacion}"
 
-    mensaje_gratis = f"🚨 *FILTRACIÓN* 🚨\n\n📌 *{filtracion['titulo']}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para no llegar tarde al próximo subidón de precio!*"
+    mensaje_gratis = f"🚨 *FILTRACIÓN* 🚨\n\n📌 *{titulo_traducido}*\n\n🔗 [{filtracion['url']}]({filtracion['url']})\n\n💡 *Upgradeá con /vip para ver las recomendaciones de inversión y perfiles de cartas que van a explotar!*"
     
     listas = obtener_suscriptores_separados()
     vips = listas.get('vip', [])
